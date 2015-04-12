@@ -51,14 +51,11 @@ if __name__ == "__main__":
                 PRIMARY KEY (id, market, category, idx)"""
     # create new table
     create_table = "CREATE TABLE " + new_table_name + " (" + fields +")"
-    #cursor_new.execute(create_table)
+    cursor_new.execute(create_table)
     query = "SELECT * FROM Products"
     cursor_product.execute(query)
     insert_frame = '(id, market, category)'
-    i = 0
     for row in cursor_product:
-        i += 1
-        if i <= 333415: continue
         product_id = row[0]
         market = get_market(cursor_metric, product_id)
         record = json.loads(row[2])
@@ -66,7 +63,7 @@ if __name__ == "__main__":
         if category is not None: insert_info = '("' + product_id + '", ' + str(market) + ', ' + '"' + category + '")'
         else:
             print >> sys.stderr, 'product id ' + product_id + ' has no category!'
-            continue 
+            continue
         insert_row(connection_new, cursor_new, new_table_name, insert_frame, insert_info)
 
     close_connection(connection_product, cursor_product)

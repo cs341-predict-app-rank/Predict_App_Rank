@@ -2,10 +2,6 @@ import json
 import mysql.connector as sql
 import sys
 
-
-username = sys.argv[1]
-password = sys.argv[2]
-
 def setup_connection(username, password,
                      host = 'appannie.coqatsb9cruk.us-west-2.rds.amazonaws.com',
                      port = '3306',
@@ -35,12 +31,15 @@ def get_market(cursor, product_id):
     cursor.execute(query)
     return cursor.fetchall()[0][0]
 
-def insert_row(cursor, table_name, query_frame, query_info):
-    query = 'INSERT INTO ' + table_name + ' ' + query_frame + ' VALUES' + query_info + ';'
+def insert_row(connection, cursor, table_name, query_frame, query_info):
+    query = 'INSERT INTO ' + table_name + ' ' + query_frame + ' VALUES' + query_info
     print query
     cursor.execute(query)
+    connection.commit()
 
 if __name__ == "__main__":
+    username = sys.argv[1]
+    password = sys.argv[2]
     connection_product, cursor_product = setup_connection(username, password)
     connection_metric, cursor_metric = setup_connection(username, password)
     connection_new, cursor_new = setup_connection(username, password)
@@ -48,22 +47,27 @@ if __name__ == "__main__":
     fields = """id       VARCHAR(255) NOT NULL,
                 market   INT          NOT NULL DEFAULT 0,
                 category VARCHAR(255) NOT NULL,
-                idx      INT          NOT NULL DEFAULT 0,
+                idx      INT          NOT NULL DEFAULT -1,
                 PRIMARY KEY (id, market, category, idx)"""
     # create new table
     create_table = "CREATE TABLE " + new_table_name + " (" + fields +")"
     #cursor_new.execute(create_table)
-    query = "SELECT * FROM Products LIMIT 1"
+    query = "SELECT * FROM Products"
     cursor_product.execute(query)
     insert_frame = '(id, market, category)'
+    i = 0
     for row in cursor_product:
+        i += 1
+        if i <= 333415: continue
         product_id = row[0]
         market = get_market(cursor_metric, product_id)
         record = json.loads(row[2])
         category = record[u'product_category']
-        insert_info = '("' + product_id + '", ' + str(market) + ', ' + '"' + category + '")'
-        insert_row(cursor_new, new_table_name, insert_frame, insert_info)
-        #print record
+        if category is not None: insert_info = '("' + product_id + '", ' + str(market) + ', ' + '"' + category + '")'
+        else:
+            print >> sys.stderr, 'product id ' + product_id + ' has no category!'
+            continue 
+        insert_row(connection_new, cursor_new, new_table_name, insert_frame, insert_info)
 
     close_connection(connection_product, cursor_product)
     close_connection(connection_metric, cursor_metric)

@@ -1,9 +1,11 @@
 import numpy as np
 import scipy.sparse as sp
+import sparseIO
 import datetime
 import json
 import mysql.connector as sql
 import sys
+import os
 
 """
 This script create matrices for the metric time series of apps. For each
@@ -44,33 +46,69 @@ config = {
 cn = sql.connect(**config)
 cursor = cn.cursor()
 
+
 #get the category list
-query = ("SELECT * FROM Categories WHERE market = 1 OR market = 3")
-cursor.execute(query)
-cate = cursor.fetchall()
+category_list = {}
+for market in (1,3):
+    query = ("SELECT DISTINCT category FROM Product_category_lookup WHERE market = %s")
+    cursor.execute(query, (market,))
+    category_list[market] = cursor.fetchall()
 
-#for each category get its app data and transform it to a matrix
-query = ("SELECT id, graph FROM Metrics "
-    "WHERE metric  = %s and country = 'US' and (device = 'android' or device = 'iphone')"
-    " LIMIT 10")
-cursor.execute(query, (1,))
-data = cursor.fetchall()
-# here I use lil matrix instead of csr because csr is not suitable for mutable object
-mtx = sp.lil_matrix((len(data), num_of_days))
+#for each market / category get its app data and transform it to a matrix
+for market in (1,3):
+    for category in category_list[market]:
+        for metric in range(1,4):
+            print category
+            query = ("SELECT Metrics.id, Metrics.graph "
+                "FROM Product_category_lookup INNER JOIN Metrics "
+                "ON Product_category_lookup.id = Metrics.id "
+                "WHERE Metrics.market = %s "
+                "AND Product_category_lookup.category = %s "
+                "AND metric  = %s "
+                "AND country = 'US' "
+                "AND (device = 'android' or device = 'iphone') "
+                "LIMIT 100")
+            cursor.execute(query, (market,category[0].encode('ascii'),metric))
+            data = cursor.fetchall()
+            # here I use lil matrix instead of csr because csr is not suitable for mutable object
+            mtx = sp.lil_matrix((len(data), num_of_days))
 
-idx = 0;
-id_dict = {}
+            idx = 0;
+            id_dict = {}
+            error_log = {}
 
-for i in data:
-    id_dict[i[0].encode('ascii')] = idx
-    series = json.loads(i[1].encode('ascii'))
-    for date in series.keys():
-        delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
-        if delta >= 0 and delta < num_of_days:
-            mtx[idx, delta] = series[date]
-    idx += 1
+            for i in data:
+                id_dict[i[0].encode('ascii')] = idx
+                valid_flag = True
+                try:
+                    series = json.loads(i[1].encode('ascii'))
+                except ValueError:
+                    valid_flag = False
+                    error_log[i[0].encode('ascii')] = ['no data',]
 
-mtx = sp.csr_matrix(mtx)
+                if valid_flag:
+                    for date in series.keys():
+                        try:
+                            delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
+                            if delta >= 0 and delta < num_of_days:
+                                mtx[idx, delta] = series[date]
+                        except:
+                            error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
+                idx += 1
+            #save the data
+            mtx = sp.csr_matrix(mtx)
+            path = market.__str__() + '/' + category[0].encode('ascii') + '/'
+            if not os.path.exists(path):
+                os.makedirs(path)
+            sparseIO.csrSave(mtx, path + 'datamatrix_metric_'+metric.__str__()+'.npz')
+            with open(path+'id_dict_metric_' + metric.__str__() +'.json', 'w') as fp:
+                json.dump(id_dict, fp)
+            with open(path+'error_log_metric_' + metric.__str__() +'.json', 'w') as fp:
+                json.dump(error_log, fp)
+
+
+
+
 
 #clean up
 cursor.close()

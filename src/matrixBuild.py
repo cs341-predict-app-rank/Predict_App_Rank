@@ -66,8 +66,7 @@ for market in (1,3):
                 "AND Product_category_lookup.category = %s "
                 "AND metric  = %s "
                 "AND country = 'US' "
-                "AND (device = 'android' or device = 'iphone') "
-                "LIMIT 100")
+                "AND (device = 'android' or device = 'iphone') ")
             cursor.execute(query, (market,category[0].encode('ascii'),metric))
             data = cursor.fetchall()
             # here I use lil matrix instead of csr because csr is not suitable for mutable object
@@ -105,10 +104,6 @@ for market in (1,3):
                 json.dump(id_dict, fp)
             with open(path+'error_log_metric_' + metric.__str__() +'.json', 'w') as fp:
                 json.dump(error_log, fp)
-
-
-
-
 
 #clean up
 cursor.close()

@@ -59,6 +59,18 @@ for market in (1,3):
     for category in category_list[market]:
         for metric in range(1,4):
             print category
+            query = ("SELECT COUNT(*) "
+                "FROM Product_category_lookup INNER JOIN Metrics "
+                "ON Product_category_lookup.id = Metrics.id "
+                "WHERE Metrics.market = %s "
+                "AND Product_category_lookup.category = %s "
+                "AND metric  = %s "
+                "AND country = 'US' "
+                "AND (device = 'android' or device = 'iphone') ")
+            cursor.execute(query, (market,category[0].encode('ascii'),metric))
+            num_of_rows = (cursor.fetchall())[0][0]
+            print num_of_rows
+            mtx = sp.lil_matrix((num_of_rows, num_of_days))
             query = ("SELECT Metrics.id, Metrics.graph "
                 "FROM Product_category_lookup INNER JOIN Metrics "
                 "ON Product_category_lookup.id = Metrics.id "
@@ -68,15 +80,12 @@ for market in (1,3):
                 "AND country = 'US' "
                 "AND (device = 'android' or device = 'iphone') ")
             cursor.execute(query, (market,category[0].encode('ascii'),metric))
-            data = cursor.fetchall()
-            # here I use lil matrix instead of csr because csr is not suitable for mutable object
-            mtx = sp.lil_matrix((len(data), num_of_days))
 
             idx = 0;
             id_dict = {}
             error_log = {}
 
-            for i in data:
+            for i in cursor:
                 id_dict[i[0].encode('ascii')] = idx
                 valid_flag = True
                 try:

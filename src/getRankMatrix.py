@@ -102,7 +102,7 @@ if __name__ == '__main__':
     cate = get_category(cursor, mrkt_num)
 
     # for each category get its app rank data and transform it to a matrix 
-    for i in range(8, 9):#len(cate)):
+    for i in range(0, 9):#len(cate)):
         cate_name = cate[i][0]  
         cate_data = get_data_in_one_category(cursor, mrkt_num, cate_name, "limit 5")# only inculde iphone in US
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 mtx_gros[idx_row, date] = rank_all[r,1]
         
         print mtx_gros[0:100,:]
-        filename = cate_name + '.us.npz'
+        filename = cate_name + '.us.iphone.npz'
         np.savez(filename, mtx_gros=mtx_gros, idx_gros=idx_gros)
 
     #clean up

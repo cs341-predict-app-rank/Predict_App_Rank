@@ -7,6 +7,7 @@ import os
 
 def queryId(cursor, appname):
     query = 'SELECT id FROM Products WHERE name = "%s"' % appname
+    print query
     cursor.execute(query)
     return [id for (id,) in list(cursor.fetchall())]
 
@@ -26,14 +27,17 @@ def queryDownloadMatrix(market, category, idx, metric):
 
 def queryInfo(cursor, appname, metric):
     id_list = queryId(cursor, appname)
+    if not id_list:
+        print "Query Failed"
+        return 1
     market_category_idx_list = [queryCategory(cursor, id) for id in id_list]
     for (market, category, idx) in market_category_idx_list:
         row = queryDownloadMatrix(market, category, idx, metric)
         if row is not None:
-            row = row.todense()[0,:-6]
-            print row
-            plt.plot(row)
-            plt.savefig(appname + '.pdf')
+            row = np.array(row.todense()[0,:-6])
+            print row[0,:]
+            plt.plot(range(row.shape[1]), row[0,:])
+            plt.savefig(appname + 'market' + str(market) + 'metric' + str(metric) + '.pdf')
 
 if __name__ == '__main__':
     username = sys.argv[1]
@@ -52,4 +56,6 @@ if __name__ == '__main__':
             close_connection(connection, cursor)
             exit(0)
         else: metric = int(metric)
-        queryInfo(cursor, appname, metric)
+        error = queryInfo(cursor, appname, metric)
+        if error is not None:
+            print "App not found in such metric"

@@ -31,13 +31,13 @@ def queryInfo(cursor, appname, metric):
         print "Query Failed"
         return 1
     market_category_idx_list = [queryCategory(cursor, id) for id in id_list]
-    for (market, category, idx) in market_category_idx_list:
+    for (i, (market, category, idx)) in enumerate(market_category_idx_list):
         row = queryDownloadMatrix(market, category, idx, metric)
         if row is not None:
             row = np.array(row.todense()[0,:-6])
-            print row[0,:]
-            plt.plot(range(row.shape[1]), row[0,:])
-            plt.savefig(appname + 'market' + str(market) + 'metric' + str(metric) + '.pdf')
+            plt.plot(range(row.shape[1]), row[0,:], label = 'data')
+            plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric))
+            plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + '_metric_' + str(metric) + '.pdf')
 
 if __name__ == '__main__':
     username = sys.argv[1]

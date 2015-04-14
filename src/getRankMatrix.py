@@ -1,3 +1,24 @@
+"""
+This script create matrices for the Daily Ranking Data of apps. For each
+category one matrix will be created, with each row representing each app
+in this category and each column representing each day. 
+
+The range of dates is from 2013-01-01 to 2015-04-01. Only U.S apps are considered.
+
+Since the matrices are sparse, scipy csr format is used to store these matrices.
+And a dict to map appid to row index is also created for each category.
+
+Usage: python getRankMatrix.py username password
+    Username and password should not be contained in code because we ARE OPEN SOURCE!
+
+Output: category_name.us.iphone.npz
+    Each file contains a matrix 'mtx_gros'. In that matrix, each row represents an app,
+    each column represents a day, and each element is the rank among all 'free' and 'paid'
+    apps, so that it's the 'grossing' matrix. The relationship between row index and app 
+    id fellows the relationship in Table 'product_category_lookup' 
+
+"""
+
 import numpy as np
 import scipy.sparse as sp
 import datetime
@@ -11,21 +32,6 @@ import time
 from glob import glob
 from tempfile import TemporaryFile
 import datetime
-
-"""
-This script create matrices for the Daily Ranking Data of apps. For each
-category one matrix will be created, with each row representing each app
-in this category and each column representing each day. 
-
-The range of dates is from 2013-01-01 to 2015-04-01. 
-Only U.S apps are considered.
-
-Since the matrices are sparse, scipy csr format is used to store these matrices.
-And a dict to map appid to row index is also created for each category.
-Usage: python2 matrixBuild.py username password
-Username and password should not be contained in code because we ARE OPEN SOURCE!
-
-"""
 
 def setup_connection(username, passwd):
     # setup connection configuration

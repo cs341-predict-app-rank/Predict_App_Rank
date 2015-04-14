@@ -54,7 +54,7 @@ for market in (1,3):
     query = ("SELECT DISTINCT category FROM Product_category_lookup WHERE market = %s")
     cursor.execute(query, (market,))
     category_list[market] = cursor.fetchall()
-
+category_list[1] = category_list[1][19:]
 #for each market / category get its app data and transform it to a matrix
 for market in (1,3):
     for category in category_list[market]:
@@ -90,8 +90,10 @@ for market in (1,3):
 
             try:
                 for i in cursor:
+                    time.sleep(0.001)
                     if (i[2]>=0 and i[2] < num_of_rows):
                         idx = i[2]
+                        print idx
                         valid_flag = True
                         try:
                             series = json.loads(i[1].encode('ascii'))

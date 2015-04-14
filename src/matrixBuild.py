@@ -6,6 +6,7 @@ import json
 import mysql.connector as sql
 import sys
 import os
+import time
 
 """
 This script create matrices for the metric time series of apps. For each
@@ -65,9 +66,12 @@ for market in (1,3):
         for i in cursor:
             id_dict[i[0].encode('ascii')] = num_of_rows
             num_of_rows += 1
-
+            time.sleep(0.00001)
+            if (num_of_rows % 1000 == 0):
+                print num_of_rows
         print category
         print num_of_rows
+        time.sleep(1)
         """
         for metric in range(1,4):
             mtx = sp.lil_matrix((num_of_rows, num_of_days))

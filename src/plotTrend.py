@@ -21,7 +21,7 @@ def queryDownloadMatrix(market, category, idx, metric):
     category_dir = market_dir + '/' + category
     filename = category_dir + '/datamatrix_metric_' + str(metric) + '.npz'
     try: whole_matrix = csrLoad(filename)
-    except IOError: print "File not exist!"
+    except IOError: print "File not exist!"; return None
     return whole_matrix[idx, :]
 
 def queryInfo(cursor, appname, metric):
@@ -29,7 +29,11 @@ def queryInfo(cursor, appname, metric):
     market_category_idx_list = [queryCategory(cursor, id) for id in id_list]
     for (market, category, idx) in market_category_idx_list:
         row = queryDownloadMatrix(market, category, idx, metric)
-        plt.plot(row)
+        if row is not None:
+            row = row.todense()[0,:-6]
+            print row
+            plt.plot(row)
+            plt.savefig(appname + '.pdf')
 
 if __name__ == '__main__':
     username = sys.argv[1]

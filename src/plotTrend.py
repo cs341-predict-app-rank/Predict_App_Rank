@@ -34,7 +34,7 @@ def queryRankMatrix(market, category, idx):
     directory = home + '/wenbo/'
     filename = directory + category + country + market_name + '.npz'
     print filename
-    try: whole_matrix = csrLoad(filename)
+    try: whole_matrix = np.load(filename)['mtx_gros'][()]
     except IOError: print "File not exist!"; return None
     return whole_matrix[idx, :]
 

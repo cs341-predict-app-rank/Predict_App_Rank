@@ -4,6 +4,8 @@ from sparseIO import *
 from lookUpTable import *
 import matplotlib.pyplot as plt
 import os
+from os.path import expanduser
+home = expanduser("~")
 
 def queryId(cursor, appname):
     query = 'SELECT id FROM Products WHERE name = "%s"' % appname
@@ -25,6 +27,17 @@ def queryDownloadMatrix(market, category, idx, metric):
     except IOError: print "File not exist!"; return None
     return whole_matrix[idx, :]
 
+def queryRankMatrix(market, category, idx):
+    if market == 1: market_name = '.iphone'
+    elif market == 3: market_name = '.android'
+    country = '.us'
+    directory = home + '/wenbo/'
+    filename = directory + category + country + market_name + '.npz'
+    print filename
+    try: whole_matrix = csrLoad(filename)
+    except IOError: print "File not exist!"; return None
+    return whole_matrix[idx, :]
+
 def queryInfo(cursor, appname, metric):
     id_list = queryId(cursor, appname)
     if not id_list:
@@ -37,7 +50,18 @@ def queryInfo(cursor, appname, metric):
             row = np.array(row.todense()[0,:-6])
             plt.plot(range(row.shape[1]), row[0,:], label = 'data')
             plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric))
+            plt.title(appname)
             plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + '_metric_' + str(metric) + '.pdf')
+            plt.clf()
+        rank = queryRankMatrix(market, category, idx)
+        if rank is not None:
+            rank = np.array(rank.todense()[0,:-6])
+            rank += 3000 * (rank == 0)
+            plt.plot(range(rank.shape[1]), rank[0,:], label = 'data')
+            plt.legend(loc = 2, title = 'product id: ' + id_list[i])
+            plt.title(appname)
+            plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + 'rank' + '.pdf')
+            plt.clf()
 
 if __name__ == '__main__':
     username = sys.argv[1]

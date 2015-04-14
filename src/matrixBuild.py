@@ -86,27 +86,32 @@ for market in (1,3):
                 "AND (device = 'android' or device = 'iphone') ")
             cursor.execute(query, (market,category[0].encode('ascii'),metric))
             error_log = {}
+            problematic_categories = []
 
-            for i in cursor:
-                if (i[2]>=0 and i[2] < num_of_rows):
-                    idx = i[2]
-                    valid_flag = True
-                    try:
-                        series = json.loads(i[1].encode('ascii'))
-                    except ValueError:
-                        valid_flag = False
+            try:
+                for i in cursor:
+                    if (i[2]>=0 and i[2] < num_of_rows):
+                        idx = i[2]
+                        valid_flag = True
+                        try:
+                            series = json.loads(i[1].encode('ascii'))
+                        except ValueError:
+                            valid_flag = False
+                            error_log[i[0].encode('ascii')] = ['no data',]
+
+                        if valid_flag:
+                            for date in series.keys():
+                                try:
+                                    delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
+                                    if delta >= 0 and delta < num_of_days:
+                                        mtx[idx, delta] = series[date]
+                                except:
+                                    error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
+                    else:
                         error_log[i[0].encode('ascii')] = ['no data',]
-
-                    if valid_flag:
-                        for date in series.keys():
-                            try:
-                                delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
-                                if delta >= 0 and delta < num_of_days:
-                                    mtx[idx, delta] = series[date]
-                            except:
-                                error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
-                else:
-                    error_log[i[0].encode('ascii')] = ['no data',]
+            except UnicodeDecodeError:
+                print "Error occured during category: " + category[0].encode('ascii')
+                problematic_categories.append(category[0].encode('ascii'))
             #save the data
             mtx = sp.csr_matrix(mtx)
             path = market.__str__() + '/' + category[0].encode('ascii') + '/'
@@ -124,5 +129,6 @@ for market in (1,3):
         """
 
 #clean up
+print problematic_categories
 cursor.close()
 cn.close()

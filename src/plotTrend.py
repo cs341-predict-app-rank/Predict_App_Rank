@@ -2,6 +2,7 @@ import sys
 import scipy.sparse
 from sparseIO import *
 from lookUpTable import *
+import matplot.pyplot as plt
 import os
 
 def queryId(cursor, appname):
@@ -19,13 +20,16 @@ def queryDownloadMatrix(market, category, idx, metric):
     market_dir = curr_dir + '/' + str(market)
     category_dir = market_dir + '/' + category
     filename = category_dir + '/datamatrix_metric_' + str(metric) + '.npz'
-    whole_matrix = csrLoad(filename)
+    try: whole_matrix = csrLoad(filename)
+    except IOError: print "File not exist!"
+    return whole_matrix[idx, :]
 
 def queryInfo(cursor, appname, metric):
     id_list = queryId(cursor, appname)
     market_category_idx_list = [queryCategory(cursor, id) for id in id_list]
     for (market, category, idx) in market_category_idx_list:
-        queryDownloadMatrix(market, category, idx, metric)
+        row = queryDownloadMatrix(market, category, idx, metric)
+        plt.plot(row)
 
 if __name__ == '__main__':
     username = sys.argv[1]

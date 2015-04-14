@@ -25,7 +25,7 @@ if __name__ == "__main__":
     indexDict = load_all()
     connection_lookup, cursor_lookup = setup_connection(username, password)
     connection_update, cursor_update = setup_connection(username, password)
-    query = "SELECT * FROM Product_category_lookup WHERE market = 3"
+    query = "SELECT * FROM Product_category_lookup WHERE market = 1"
     cursor_lookup.execute(query)
     insert_frame = '(id, metric, idx)'
     for row in cursor_lookup:

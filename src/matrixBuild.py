@@ -47,7 +47,7 @@ config = {
 cn = sql.connect(**config)
 cursor = cn.cursor()
 
-
+print "hehe"
 #get the category list
 category_list = {}
 for market in (1,3):
@@ -58,21 +58,25 @@ for market in (1,3):
 #for each market / category get its app data and transform it to a matrix
 for market in (1,3):
     for category in category_list[market]:
-        query = ("SELECT id FROM Product_category_lookup "
+        query = ("SELECT COUNT(*) FROM Product_category_lookup "
                 "WHERE category = %s ")
         cursor.execute(query, (category[0].encode('ascii'),))
         id_dict = {}
-        num_of_rows = 0
+        num_of_rows = (cursor.fetchall())[0][0]
+        """
         for i in cursor:
             id_dict[i[0].encode('ascii')] = num_of_rows
             num_of_rows += 1
-
+            time.sleep(0.0002)
+            if num_of_rows % 10000 == 0:
+                print num_of_rows
+        """
         print category
         print num_of_rows
 
         for metric in range(1,4):
             mtx = sp.lil_matrix((num_of_rows, num_of_days))
-            query = ("SELECT Metrics.id, Metrics.graph "
+            query = ("SELECT Metrics.id, Metrics.graph, Product_category_lookup.idx "
                 "FROM Product_category_lookup INNER JOIN Metrics "
                 "ON Product_category_lookup.id = Metrics.id "
                 "WHERE Metrics.market = %s "
@@ -84,8 +88,8 @@ for market in (1,3):
             error_log = {}
 
             for i in cursor:
-                if (i[0].encode('ascii') in id_dict):
-                    idx = id_dict[i[0].encode('ascii')]
+                if (i[2]>=0 and i[2] < num_of_rows):
+                    idx = i[2]
                     valid_flag = True
                     try:
                         series = json.loads(i[1].encode('ascii'))

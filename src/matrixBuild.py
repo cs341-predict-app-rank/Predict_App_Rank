@@ -56,7 +56,7 @@ for market in (1,3):
 
 #for each market / category get its app data and transform it to a matrix
 for market in (1,3):
-    for category in category_list[market][0:1]:
+    for category in category_list[market]:
         query = ("SELECT id FROM Product_category_lookup "
                 "WHERE category = %s ")
         cursor.execute(query, (category[0].encode('ascii'),))
@@ -68,7 +68,7 @@ for market in (1,3):
 
         print category
         print num_of_rows
-
+        """
         for metric in range(1,4):
             mtx = sp.lil_matrix((num_of_rows, num_of_days))
             query = ("SELECT Metrics.id, Metrics.graph "
@@ -110,7 +110,10 @@ for market in (1,3):
             sparseIO.csrSave(mtx, path + 'datamatrix_metric_'+metric.__str__()+'.npz')
             with open(path+'error_log_metric_' + metric.__str__() +'.json', 'w') as fp:
                 json.dump(error_log, fp)
-
+            """
+        path = market.__str__() + '/' + category[0].encode('ascii') + '/'
+        if not os.path.exists(path):
+            os.makedirs(path)
         with open(path+'id_dict' + '.json', 'w') as fp:
             json.dump(id_dict, fp)
 

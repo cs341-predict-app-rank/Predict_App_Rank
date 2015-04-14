@@ -56,20 +56,20 @@ for market in (1,3):
 
 #for each market / category get its app data and transform it to a matrix
 for market in (1,3):
-    for category in category_list[market]:
+    for category in category_list[market][0:1]:
+        query = ("SELECT id FROM Product_category_lookup "
+                "WHERE category = %s ")
+        cursor.execute(query, (category[0].encode('ascii'),))
+        id_dict = {}
+        num_of_rows = 0
+        for i in cursor:
+            id_dict[i[0].encode('ascii')] = num_of_rows
+            num_of_rows += 1
+
+        print category
+        print num_of_rows
+
         for metric in range(1,4):
-            print category
-            query = ("SELECT COUNT(*) "
-                "FROM Product_category_lookup INNER JOIN Metrics "
-                "ON Product_category_lookup.id = Metrics.id "
-                "WHERE Metrics.market = %s "
-                "AND Product_category_lookup.category = %s "
-                "AND metric  = %s "
-                "AND country = 'US' "
-                "AND (device = 'android' or device = 'iphone') ")
-            cursor.execute(query, (market,category[0].encode('ascii'),metric))
-            num_of_rows = (cursor.fetchall())[0][0]
-            print num_of_rows
             mtx = sp.lil_matrix((num_of_rows, num_of_days))
             query = ("SELECT Metrics.id, Metrics.graph "
                 "FROM Product_category_lookup INNER JOIN Metrics "
@@ -80,39 +80,39 @@ for market in (1,3):
                 "AND country = 'US' "
                 "AND (device = 'android' or device = 'iphone') ")
             cursor.execute(query, (market,category[0].encode('ascii'),metric))
-
-            idx = 0;
-            id_dict = {}
             error_log = {}
 
             for i in cursor:
-                id_dict[i[0].encode('ascii')] = idx
-                valid_flag = True
-                try:
-                    series = json.loads(i[1].encode('ascii'))
-                except ValueError:
-                    valid_flag = False
-                    error_log[i[0].encode('ascii')] = ['no data',]
+                if (i[0].encode('ascii') in id_dict):
+                    idx = id_dict[i[0].encode('ascii')]
+                    valid_flag = True
+                    try:
+                        series = json.loads(i[1].encode('ascii'))
+                    except ValueError:
+                        valid_flag = False
+                        error_log[i[0].encode('ascii')] = ['no data',]
 
-                if valid_flag:
-                    for date in series.keys():
-                        try:
-                            delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
-                            if delta >= 0 and delta < num_of_days:
-                                mtx[idx, delta] = series[date]
-                        except:
-                            error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
-                idx += 1
+                    if valid_flag:
+                        for date in series.keys():
+                            try:
+                                delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
+                                if delta >= 0 and delta < num_of_days:
+                                    mtx[idx, delta] = series[date]
+                            except:
+                                error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
+                else:
+                    error_log[i[0].encode('ascii')] = ['no data',]
             #save the data
             mtx = sp.csr_matrix(mtx)
             path = market.__str__() + '/' + category[0].encode('ascii') + '/'
             if not os.path.exists(path):
                 os.makedirs(path)
             sparseIO.csrSave(mtx, path + 'datamatrix_metric_'+metric.__str__()+'.npz')
-            with open(path+'id_dict_metric_' + metric.__str__() +'.json', 'w') as fp:
-                json.dump(id_dict, fp)
             with open(path+'error_log_metric_' + metric.__str__() +'.json', 'w') as fp:
                 json.dump(error_log, fp)
+
+        with open(path+'id_dict' + '.json', 'w') as fp:
+            json.dump(id_dict, fp)
 
 #clean up
 cursor.close()

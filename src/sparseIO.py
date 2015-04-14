@@ -22,3 +22,12 @@ def csrLoad(filename):
     loader = np.load(filename)
     return csr_matrix((  loader['data'], loader['indices'], loader['indptr']),
                          shape = loader['shape'])
+
+def rankLoad(filename):
+    """
+    Load a scipy-lil format sparse matrix from a filename
+    filename: target filename
+    return: scipy lil_matrix format sparse matrix
+    """
+    loader = np.load(filename)
+    return loader['mtx_gros'][()]

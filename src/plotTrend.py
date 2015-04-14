@@ -10,7 +10,8 @@ if __name__ == '__main__':
     password = sys.argv[1]
     while(True):
         print "App name: "
-        appname = input()
+        appname = sys.stdin.readline()
+        if appname == : exit(0)
         print "Metric: "
-        metric = input()
+        metric = sys.stdin.readline()
         queryInfo(appname, metric)

@@ -8,7 +8,7 @@ def load_all():
     curr_dir = os.path.dirname(os.path.realpath(__file__))
     filename = 'id_dict.json'
     indexDict = dict()
-    market_list = [1]
+    market_list = [1, 3]
     for market in market_list:
         market_dir = curr_dir + '/' + str(market)
         categories = os.listdir(market_dir)
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     indexDict = load_all()
     connection_lookup, cursor_lookup = setup_connection(username, password)
     connection_update, cursor_update = setup_connection(username, password)
-    query = "SELECT * FROM Product_category_lookup"
+    query = "SELECT * FROM Product_category_lookup WHERE market = 3"
     cursor_lookup.execute(query)
     insert_frame = '(id, metric, idx)'
     for row in cursor_lookup:

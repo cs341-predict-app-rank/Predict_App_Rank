@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse
+from scipy.sparse import csr_matrix
 
 def csrSave(array, filename):
     """

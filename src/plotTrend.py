@@ -2,7 +2,7 @@ import sys
 import scipy.sparse
 from sparseIO import *
 from lookUpTable import *
-import matplot.pyplot as plt
+import matplotlib.pyplot as plt
 import os
 
 def queryId(cursor, appname):

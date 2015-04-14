@@ -109,7 +109,7 @@ for market in (1,3):
                                     error_log[i[0].encode('ascii')] = error_log.get(i[0].encode('ascii'), []) + [date]
                     else:
                         error_log[i[0].encode('ascii')] = ['no data',]
-            except UnicodeDecodeError:
+            except:
                 print "Error occured during category: " + category[0].encode('ascii')
                 problematic_categories.append(category[0].encode('ascii'))
             #save the data

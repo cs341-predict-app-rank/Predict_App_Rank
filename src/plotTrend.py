@@ -2,21 +2,30 @@ import sys
 import scipy.sparse
 from sparseIO import *
 from lookUpTable import *
+import os
 
 def queryId(cursor, appname):
     query = 'SELECT id FROM Products WHERE name = "%s"' % appname
     cursor.execute(query)
-    return [a for (a,) in list(cursor.fetchall())]
+    return [id for (id,) in list(cursor.fetchall())]
 
 def queryCategory(cursor, product_id):
-    query = 'SELECT category,idx FROM Product_category_lookup WHERE id = "%s"' % product_id
+    query = 'SELECT market,category,idx FROM Product_category_lookup WHERE id = "%s"' % product_id
     cursor.execute(query)
     return cursor.fetchall()[0]
 
+def queryDownloadMatrix(market, category, idx, metric):
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    market_dir = curr_dir + '/' + str(market)
+    category_dir = market_dir + '/' + category
+    filename = category_dir + '/datamatrix_metric_' + str(metric) + '.npz'
+    whole_matrix = csrLoad(filename)
+
 def queryInfo(cursor, appname, metric):
     id_list = queryId(cursor, appname)
-    category_idx_list = [queryCategory(cursor, id) for id in id_list]
-    print id_list, category_idx_list
+    market_category_idx_list = [queryCategory(cursor, id) for id in id_list]
+    for (market, category, idx) in market_category_idx_list:
+        queryDownloadMatrix(market, category, idx, metric)
 
 if __name__ == '__main__':
     username = sys.argv[1]

@@ -3,6 +3,7 @@ import sparseIO
 import scipy.sparse as sps
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 ############################################################################
 # Hyper parameters:                                                        #
@@ -21,7 +22,7 @@ inputFile = './Productivity/datamatrix_metric_1.npz'
 predictTimeWindow = 10
 featureTimeWindow = 10
 slidingWindowSize = 4
-outOfSigmaSuccess = 2
+outOfSigmaSuccess = 1
 successThreshold = 5
 garbageThreshold = featureTimeWindow * WEEK # a download a day, keep doctors away.
 testPortion = 0.2
@@ -33,9 +34,10 @@ def rawDataMatrix(inputFile):
     Input:
         inputFile: string contains filename.
     Output:
-        a csr matrix contains raw data.
+        a csr matrix contains raw data with missing date cleaned.
     """
-    return sparseIO.csrLoad(inputFile)
+    # cleaning the missing date
+    return sparseIO.csrLoad(inputFile)[:,:-6]
 
 def compressMatrix(rawData, windowSize = slidingWindowSize * WEEK, skipDay = WEEK):
     """
@@ -52,7 +54,7 @@ def compressMatrix(rawData, windowSize = slidingWindowSize * WEEK, skipDay = WEE
     dataNum = rawData.shape[0]
     windowNum = (rawData.shape[1] - windowSize) // skipDay
     slidingWindowMatrix = np.zeros((dataNum, windowNum))
-    for i in range(windowNum):
+    for i in xrange(windowNum):
         slidingWindowMatrix[:,i] = rawData[:,(WEEK * i):(WEEK * i + windowSize)].sum(1).T
     return sps.csr_matrix(slidingWindowMatrix)
 
@@ -76,20 +78,16 @@ def generateAccumulateLabelByCol(dataMatrix, numberSigma = outOfSigmaSuccess):
     Function: generateAccumulateLabelByCol
         Generate out-of-sigma-success label for each column.
     Input:
-        dataMatrix: data to generate label.
-        numberSigma: how much sigma we want to label it as success.
+        dataMatrix: data to generate label, type numpy array.
+        numberSigma: how many sigma we want to label it as success.
     Output:
         matrix as same shape with dataMatrix, elements are 0 or 1.
     """
     # expectation
     mean = dataMatrix.mean(0)
-    sq = dataMatrix.copy()
-    sq.data **= 2
-    # expectation of square
-    sqmean = sq.mean(0)
     # standard deviation
-    std = np.sqrt(sqmean - np.square(mean))
-    return dataMatrix > mean + std * numberSigma
+    std = dataMatrix.std(0)
+    return dataMatrix > (mean + std * numberSigma)
 
 def standardize(featureMatrix):
     """
@@ -103,17 +101,120 @@ def standardize(featureMatrix):
     standardizedMatrix = featureMatrix.copy()
     standardizedMatrix -= standardizedMatrix.mean(0)
     standardizedMatrix /= standardizedMatrix.std(0)
-    print standardizedMatrix.mean(0)
-    print standardizedMatrix.std(0)
     return standardizedMatrix
 
-def singlePredictTime():
-    return
+def sample(dataSet, testPortion = testPortion):
+    """
+    Function: sample
+        split whole dataset into training set and test set.
+    Input:
+        dataSet: a list or tuple of data to be sampled.
+        testPortion: portion to be sampled as test set.
+    Output:
+        training set and test set, as the same form with dataSet.
+    """
+    dataNum = dataSet[0].shape[0]
+    sample = range(dataNum)
+    random.shuffle(sample)
+    testNum = int(dataNum * testPortion)
+    trainNum = dataNum - testNum
+    train = [None] * len(dataSet)
+    test = [None] * len(dataSet)
+    for i in xrange(len(dataSet)):
+        train[i] = dataSet[i][0:trainNum]
+        test[i] = dataSet[i][trainNum:dataNum]
+    return train, test
+
+def singlePredictTime(totalDataMatrix, predictTimeStamp,
+        windowSize = slidingWindowSize,
+        featureSize = featureTimeWindow - slidingWindowSize + 1,
+        predictSize = predictTimeWindow - slidingWindowSize + 1,
+        success = successThreshold):
+    """
+    Function: singlePredictTime
+        Give a predict time, generate standardized features and labels.
+    Input:
+        totalDataMatrix: the complete data matrix.
+        predictTimeStamp: time to start prediction.
+        windowSize: size of sliding window.
+        featureSize: feature dimension.
+        predictSize: prediction dimension to generate label.
+        success: win at least these sliding windows to label as successful.
+    Output:
+        feature matrix, accumulate label and sliding window label.
+    Application note: In this function, swipeOutInactiveApp(...) and
+    generateAccumulateLabelByCol(...) are called with default parameters.
+    """
+    featureEndTime = predictTimeStamp - windowSize + 1
+    featureStartTime = featureEndTime - featureSize
+    featureTotal = totalDataMatrix[:,featureStartTime:featureEndTime]
+    predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
+    featureMatrix, predictMatrix = swipeOutInactiveApp(featureTotal, predictTotal)
+    accumulateLabel = generateAccumulateLabelByCol(predictMatrix.sum(1))
+    eachWindowLabel = generateAccumulateLabelByCol(predictMatrix)
+    slidingWindowLabel = (eachWindowLabel.sum(1) >= success)
+    return standardize(featureMatrix), accumulateLabel[:,None], slidingWindowLabel[:,None]
+
+def generateFeatureMatrixAndLabel(totalDataMatrix,
+        windowSize = slidingWindowSize,
+        featureWindow = featureTimeWindow,
+        predictWindow = predictTimeWindow,
+        success = successThreshold):
+    """
+    Function: generateFeatureMatrixAndLabel
+        generate feature matrix and label from total matrix, both training set and testing set.
+    Input:
+        totalDataMatrix: the complete data matrix.
+        windowSize: size of sliding window.
+        featureWindow: size of feature window.
+        predictWindow: size of prediction window.
+        success: win at least these sliding windows to label as successful.
+    Output:
+        (train, test), each one contains (matrix, accumulate label, sliding window label).
+    Application note: singlePredictTime(...) is called, where some
+    default-parameter-function-call involve. Also, sample(...) is called
+    by default parameter.
+    """
+    featureSize = featureWindow - windowSize + 1
+    predictSize = predictWindow - windowSize + 1
+    train = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1))]
+    test = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1))]
+    for predictTime in xrange(featureWindow, totalDataMatrix.shape[1] - predictSize):
+        dataSet = singlePredictTime(totalDataMatrix, predictTime,
+                windowSize, featureSize, predictSize, success)
+        singleTrain, singleTest = sample(dataSet)
+        for i in range(len(train)):
+            train[i] = np.vstack((train[i],singleTrain[i]))
+            test[i] = np.vstack((test[i],singleTest[i]))
+    return train, test
+
+def buildMatrix(filename = inputFile):
+    """
+    Function: buildMatrix
+        Wrapper for the whole procedure.
+    Input:
+        filename: input category file name.
+    Output:
+        (train, test), each one contains (matrix, accumulate label, sliding window label).
+    Application note: This is a wrapper function therefore have many
+    default-parameter-function-call.
+    """
+    rawData = rawDataMatrix(inputFile)
+    transformed = compressMatrix(rawData)
+    return generateFeatureMatrixAndLabel(transformed)
+
+def plotDownloadInflation(filename = inputFile):
+    """
+    Function: plotDownloadInflation
+        Wrapper for plot download inflation
+    """
+    rawData = rawDataMatrix(inputFile)
+    transformed = compressMatrix(rawData)
+    plt.subplot(1,2,1)
+    plt.plot(rawData.sum(0).T)
+    plt.subplot(1,2,2)
+    plt.plot(transformed.sum(0).T)
+    plt.show()
 
 if __name__ == '__main__':
-    rawData = rawDataMatrix(inputFile)
-    # cleaning the missing data
-    rawData = rawData[:,:-6]
-    transformed = compressMatrix(rawData)
-    label = generateAccumulateLabelByCol(transformed[:,0:2])
-    print standardize(transformed[:,0:2].toarray())
+    train, test = buildMatrix()

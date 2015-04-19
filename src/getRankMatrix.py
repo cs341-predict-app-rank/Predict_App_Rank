@@ -33,7 +33,7 @@ from glob import glob
 from tempfile import TemporaryFile
 import datetime
 
-def setup_connection(username, passwd):
+def setupMysql(username, passwd):
     # setup connection configuration
     config = {
         'user': username,
@@ -44,14 +44,14 @@ def setup_connection(username, passwd):
     }
     return config
 
-def get_category(cursor, mrkt_num):
+def getCate(cursor, mrkt_num):
     query = ("SELECT distinct category FROM TopCharts "
         "WHERE country = 'US' and market = %s" % mrkt_num)
     cursor.execute(query)
     cate = cursor.fetchall()
     return cate
 
-def get_data_in_one_category(cursor, mrkt_num, cate_name, limit):
+def getDataByCate(cursor, mrkt_num, cate_name, limit):
     query = ('SELECT rank_date, data FROM TopCharts '
             'WHERE market = %s'
             ' and category = "%s"'
@@ -62,7 +62,7 @@ def get_data_in_one_category(cursor, mrkt_num, cate_name, limit):
     raw_data = cursor.fetchall()
     return raw_data
 
-def get_idx_in_one_category(cursor, mrkt_num, cate_name):
+def getIdxByCate(cursor, mrkt_num, cate_name):
     query = ("SELECT id, idx FROM Product_category_lookup "
             'WHERE market = %s'
             ' and category = "%s"' % (mrkt_num, cate_name)
@@ -74,7 +74,7 @@ def get_idx_in_one_category(cursor, mrkt_num, cate_name):
         index[str(row[0])] = row[1]
     return index
 
-def get_rank_in_one_day(cate_data, date):
+def getRankByDate(cate_data, date):
     # rank_all is a metrix. Each raw represents a app:
     #   Three columns represent: 
     #     0 feed type(free=0, paid=1, grossing=2), 
@@ -103,7 +103,7 @@ def get_rank_in_one_day(cate_data, date):
         rank_all[r, 2] = data['list'][r]['product_id'];
     return rank_all, num_free, num_paid, num_gros
 
-def get_cate_name(raw):
+def getCateName(raw):
     new = raw.split(' > ')
     return new[len(new)-1]
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # connect to db
-    config = setup_connection(username, passwd)
+    config = setupMysql(username, passwd)
     cn = sql.connect(**config)
     cursor = cn.cursor()
    
@@ -129,16 +129,16 @@ if __name__ == '__main__':
     mrkt_num = '1' # set up market choises: 1=IOS or 3=Android
     
     # get the category list
-    cate = get_category(cursor, mrkt_num)
+    cate = getCate(cursor, mrkt_num)
 
     # for each category get its app rank data and transform it to a matrix  
     for i in range(8, len(cate)):
         start = time.time()
-        cate_data = get_data_in_one_category(cursor, mrkt_num, cate[i][0], "")# only inculde iphone in US
-        cate_name = get_cate_name(cate[i][0])
+        cate_data = getDataByCate(cursor, mrkt_num, cate[i][0], "limit 10")# only inculde iphone in US
+        cate_name = getCateName(cate[i][0])
         
         # get index from product_category_lookup
-        index = get_idx_in_one_category(cursor, mrkt_num, cate_name)
+        index = getIdxByCate(cursor, mrkt_num, cate_name)
         print 'Got index.','\t','Run time:', (time.time()-start)
         mtx_gros = sp.lil_matrix((len(index)+1, len(cate_data)), dtype=np.int)
         # mtx_free = sp.lil_matrix(len(cate_data), 1000)
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         # update daily ranking 
         date = -1
         for day in range(0, len(cate_data)):   # for each day in this category
-            rank_all, num_free, num_paid, num_gros = get_rank_in_one_day(cate_data, day)
+            rank_all, num_free, num_paid, num_gros = getRankByDate(cate_data, day)
             
             # update each rank
             date = date + 1

@@ -11,7 +11,7 @@ from sklearn.neighbors import *
 
 ############################################################################
 #	Function:
-# 		Implement different learing algorithms to predict good app.
+# 		Implement different learing algorithms to predict good apps.
 # 	Input:
 # 		Raw matrix npz files, created by 'matrixBuild.py'
 # 		Data locates at Prediction_App_Trend/src/1/*
@@ -94,43 +94,79 @@ def printMatrixInfo(train, test):
 
 def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	"""
-	label: just a name
-	loss: str, 'log'
-	penalty: str, 'l2'
-	regularization_strength: float, 0.1
-	X1, Y1: train
-	X2, Y2: test
+	Function: use Stochastic gradient decent logistic regression to predict
+	Input:
+		label: just a name to recognize input data from output
+		loss: str, 'log'
+		penalty: str, 'l2'
+		regularization_strength: float, 0.1
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
 	"""
 	model = SGDClassifier(loss = loss, penalty = penalty, alpha = regularization_strength)
 	model.fit(X1,Y1)
+	label = label + '.'+ str(loss) + '.' + str(penalty) + '.' + str(regularization_strength) 
 	TPR, TNR, ACC = getAccuracy('LogisticSGD.Train.'+label, model.predict(X1), Y1)
 	TPR, TNR, ACC = getAccuracy('LogisticSGD.Test.'+label, model.predict(X2), Y2)
 	return 0
 
 def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
 	"""
-	label: just a name
-	kernel: 'poly'
-	degree: 3
-	penalty: 1
+	Function: use SVM to predict
+	Input:
+		label: just a name to recognize input data from output
+		kernel: 'poly'
+		degree: 3
+		penalty: 1
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
 	"""
 	model = SVC(kernel = kernel, degree = degree, C = penalty)
 	model.fit(X1,Y1)
+	label = label + '.'+ str(kernel) + '.' + str(degree) + '.' + str(penalty)
 	TPR, TNR, ACC = getAccuracy('SVM.Train.'+label, model.predict(X1), Y1)
 	TPR, TNR, ACC = getAccuracy('SVM.Test.'+label, model.predict(X2), Y2)
 	return 0
 
 def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
+	"""
+	Function: use SVM to predict
+	Input:
+		label: just a name to recognize input data from output
+		kernel: 'inv', to compute prediction from distances
+		k: number of neighbors
+		threshold: use to determine if the prediction is positive or not
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
+	"""
 	tree = KDTree(X1, leaf_size = 5)
 	prediction = np.zeros(len(X2))
 	for i in range(0, len(X2)):
 		dist, idx = tree.query(X2[i], k = k)
 		# print dist, idx 
 		prediction[i] = kernelkNN(kernel, threshold, dist[0], idx[0], Y1)
-	getAccuracy('kNN.'+kernel+'.'+label, prediction, Y2)
+	label = label + '.'+ str(kernel) + '.' + str(k) + '.' + str(threshold)
+	getAccuracy('kNN.'+label, prediction, Y2)
 	return 0
 
 def kernelkNN(kernel, threshold, dist, idx, Y1):
+	'''
+	Function: implement differnt kernel method to compute prediction from distances
+	Input:
+		kernel: kernel Name, 'inv'
+		threshold: use to determine if the prediction is positive or not
+		dist: distance array, from 'usekernelkNN()'
+		idx: index array, from 'usekernelkNN()'
+		Y1: label array for known neighbors
+	Output:
+		prediction value
+	'''
 	if kernel == 'inv': # inverse
 		numerator = 0
 		denominator = 0

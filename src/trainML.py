@@ -196,7 +196,8 @@ if __name__ == '__main__':
 	useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# useSVM('Acc','poly', 3, 1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	# useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# confidence = modelLog.decision_function(testFeature)
 	
 	runTime = time.time() - timeStart

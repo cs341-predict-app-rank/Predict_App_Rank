@@ -4,8 +4,10 @@ import os
 import sys
 import time
 import buildMLInput as bml
+import numpy as np
 from sklearn.linear_model import *
 from sklearn.svm import *
+from sklearn.neighbors import *
 
 ############################################################################
 #	Function:
@@ -118,6 +120,34 @@ def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
 	TPR, TNR, ACC = getAccuracy('SVM.Test.'+label, model.predict(X2), Y2)
 	return 0
 
+def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
+	tree = KDTree(X1, leaf_size = 5)
+	prediction = np.zeros(len(X2))
+	for i in range(0, len(X2)):
+		dist, idx = tree.query(X2[i], k = k)
+		# print dist, idx 
+		prediction[i] = kernelkNN(kernel, threshold, dist[0], idx[0], Y1)
+	getAccuracy('kNN.'+kernel+'.'+label, prediction, Y2)
+	return 0
+
+def kernelkNN(kernel, threshold, dist, idx, Y1):
+	if kernel == 'inv': # inverse
+		numerator = 0
+		denominator = 0
+		for i in range(0,len(dist)):
+			# print dist[i], Y1[idx[i]]
+			dist[i] = dist[i] + 0.0001 # avoid dist == 0
+			numerator = numerator + Y1[idx[i]]/dist[i]
+			denominator = denominator + 1/dist[i]
+		prediction = numerator/denominator
+		if prediction > threshold:
+			return 1.0
+		else:
+			return 0.0
+	else:
+		print 'Cannot find kNN kernel:', kernel
+		return 0
+
 def getAccuracy(modelName, prediction, target):
 	TP = 0
 	FP = 0
@@ -137,10 +167,11 @@ def getAccuracy(modelName, prediction, target):
 				FN = FN + 1
 	TPR = TP/float(TP+FN)*100
 	TNR = TN/float(TN+FP)*100
+	PPV = TP/float(TP+FP)*100
 	ACC = (TP+TN)/num*100
-	print '<'+modelName+'>'
-	print 'True positive:', TP, '\tFalse negative:', FN, '\t TP Ratio:', TPR,'%'
-	print 'True negative:', TN, '\tFalse positive:', FP, '\t TN Ratio:', TNR,'%'
+	print '\n<'+modelName+'>'
+	print 'True pos:', TP, '\t\tFalse neg:', FN, '\t Sensitivity(TPR):', TPR,'%'
+	print 'True neg:', TN, '\tFalse pos:', FP, '\t\t Precision(PPV):  ', PPV,'%'
 	print 'Overall accuracy:', ACC,'%'
 	# for i in range(0,10):
 	# 	print prediction[i], target[i], confidence[i]
@@ -152,7 +183,7 @@ if __name__ == '__main__':
 	timeStart = time.time()
 	bml = setInputParameters(bml)
 	train, test = bml.buildMatrix()
-	printMatrixInfo(train, test)
+	# printMatrixInfo(train, test)
 
 	trainFeature = train[0]	# feature matrix
 	trainTargetAcc = train[1][:,0]	# accumulated label
@@ -163,9 +194,9 @@ if __name__ == '__main__':
 
 	useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	useSVM('Acc','poly', 3, 1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-
+	# useSVM('Acc','poly', 3, 1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	# useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	# confidence = modelLog.decision_function(testFeature)
 	
 	runTime = time.time() - timeStart

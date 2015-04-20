@@ -164,7 +164,7 @@ if __name__ == '__main__':
 	useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	useSVM('Acc','poly', 3, 1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetAcc)
+	useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 
 	# confidence = modelLog.decision_function(testFeature)
 	

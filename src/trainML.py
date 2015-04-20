@@ -80,7 +80,7 @@ def trainLinearSGD(X,Y,model,penalty,regularization_strength):
 	clf.fit(X,Y)
 	return clf
 
-def printPerformance(modelName, prediction, target, confidence, accuracy):
+def printPerformance(modelName, prediction, target, confidence):
 	TP = 0
 	FP = 0
 	TN = 0
@@ -98,12 +98,14 @@ def printPerformance(modelName, prediction, target, confidence, accuracy):
 			else:
 				FN = FN + 1
 	print '====', modelName, '===='
-	print 'Overall accuracy:', accuracy
-	print 'True positive:   ', TP
-	print 'True negative:   ', TN
-	for i in range(0,10):
-		print prediction[i], target[i][0], confidence[i]
-	return 0
+	print 'Overall accuracy:', (TP+TN)/num*100,'%'
+	print 'True positive:   ', TP, '\t\t', TP/float(TP+FN)*100,'%'
+	print 'True negative:   ', TN, '\t', TN/float(TN+FP)*100,'%'
+	print 'False positive:  ', FP
+	print 'False negative:  ', FN
+	# for i in range(0,10):
+	# 	print prediction[i], target[i][0], confidence[i]
+	# return 0
 
 
 if __name__ == '__main__':
@@ -116,7 +118,7 @@ if __name__ == '__main__':
 	trainTargetAcc = train[1]
 	trainTargetSld = train[2]
 
-	modelLog = trainLinearSGD(trainFeature, trainTargetAcc, 'log', 'l2', 1.0)
+	modelLog = trainLinearSGD(trainFeature, trainTargetAcc, 'log', 'l2', 0.1)
 	
 	testFeature = test[0]
 	testTargetAcc = test[1]
@@ -124,9 +126,9 @@ if __name__ == '__main__':
 
 	prediction = modelLog.predict(testFeature)
 	confidence = modelLog.decision_function(testFeature)
-	accuracy = modelLog.score(testFeature,testTargetAcc)
-
-	printPerformance('SGD Logistic',prediction, testTargetAcc, confidence, accuracy)
+	
+	printPerformance('SGD Logistic Train',modelLog.predict(trainFeature), trainTargetAcc, confidence)
+	printPerformance('SGD Logistic Test',prediction, testTargetAcc, confidence)
 
 	
 	runTime = time.time() - timeStart

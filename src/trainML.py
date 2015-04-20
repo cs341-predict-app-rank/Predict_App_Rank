@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.linear_model import *
 from sklearn.svm import *
 from sklearn.neighbors import *
+from sklearn.externals import joblib
 
 ############################################################################
 #	Function:
@@ -23,6 +24,8 @@ from sklearn.neighbors import *
 ############################################################################
 
 # default parameter values:
+ModelFileDir = 'models/' # save existing model in this dir
+
 def setInputParameters(bml):
 	"""
 	Function: 
@@ -104,13 +107,16 @@ def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 		X2, Y2: test
 	Output:
 		print accuracy to screen
+		return prediction for test
 	"""
 	model = SGDClassifier(loss = loss, penalty = penalty, alpha = regularization_strength)
 	model.fit(X1,Y1)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
 	label = label + '.'+ str(loss) + '.' + str(penalty) + '.' + str(regularization_strength) 
-	TPR, TNR, ACC = getAccuracy('LogisticSGD.Train.'+label, model.predict(X1), Y1)
-	TPR, TNR, ACC = getAccuracy('LogisticSGD.Test.'+label, model.predict(X2), Y2)
-	return 0
+	TPR, TNR, ACC = getAccuracy('LogisticSGD.Train.'+label, prediction1, Y1)
+	TPR, TNR, ACC = getAccuracy('LogisticSGD.Test.'+label, prediction2, Y2)
+	return prediction2
 
 def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
 	"""
@@ -124,13 +130,21 @@ def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
 		X2, Y2: test
 	Output:
 		print accuracy to screen
+		return prediction for test
 	"""
-	model = SVC(kernel = kernel, degree = degree, C = penalty)
-	model.fit(X1,Y1)
 	label = label + '.'+ str(kernel) + '.' + str(degree) + '.' + str(penalty)
-	TPR, TNR, ACC = getAccuracy('SVM.Train.'+label, model.predict(X1), Y1)
-	TPR, TNR, ACC = getAccuracy('SVM.Test.'+label, model.predict(X2), Y2)
-	return 0
+	modelFileName = ModelFileDir + 'svm.'+label+'.pkl'
+	try:
+		model = joblib.load(modelFileName)
+	except:
+		model = SVC(kernel = kernel, degree = degree, C = penalty)
+		model.fit(X1,Y1)
+		joblib.dump(model, modelFileName)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
+	TPR, TNR, ACC = getAccuracy('SVM.Train.'+label, prediction1, Y1)
+	TPR, TNR, ACC = getAccuracy('SVM.Test.'+label, prediction2, Y2)
+	return prediction2
 
 def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 	"""
@@ -144,6 +158,7 @@ def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 		X2, Y2: test
 	Output:
 		print accuracy to screen
+		return prediction for test
 	"""
 	tree = KDTree(X1, leaf_size = 5)
 	prediction = np.zeros(len(X2))
@@ -153,7 +168,7 @@ def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 		prediction[i] = kernelkNN(kernel, threshold, dist[0], idx[0], Y1)
 	label = label + '.'+ str(kernel) + '.' + str(k) + '.' + str(threshold)
 	getAccuracy('kNN.'+label, prediction, Y2)
-	return 0
+	return prediction
 
 def kernelkNN(kernel, threshold, dist, idx, Y1):
 	'''
@@ -228,12 +243,12 @@ if __name__ == '__main__':
 	testTargetAcc = test[1][:,0]	# accumulated label
 	testTargetSld = test[2][:,0]	# sliding window label
 
-	useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	# useSVM('Acc','poly', 3, 1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	# useSVM('Sld','poly', 3, 1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	# useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# useSVM('Acc','poly', 2, 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	useSVM('Sld','poly', 4, 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
+	# usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# confidence = modelLog.decision_function(testFeature)
 	
 	runTime = time.time() - timeStart

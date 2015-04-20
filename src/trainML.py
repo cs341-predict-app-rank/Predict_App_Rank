@@ -152,7 +152,7 @@ if __name__ == '__main__':
 	timeStart = time.time()
 	bml = setInputParameters(bml)
 	train, test = bml.buildMatrix()
-	# printMatrixInfo(train, test)
+	printMatrixInfo(train, test)
 
 	trainFeature = train[0]	# feature matrix
 	trainTargetAcc = train[1][:,0]	# accumulated label

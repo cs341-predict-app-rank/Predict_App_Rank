@@ -170,8 +170,8 @@ def getAccuracy(modelName, prediction, target):
 	PPV = TP/float(TP+FP)*100
 	ACC = (TP+TN)/num*100
 	print '\n<'+modelName+'>'
-	print 'True pos:', TP, '\t\tFalse neg:', FN, '\t Sensitivity(TPR):', TPR,'%'
-	print 'True neg:', TN, '\tFalse pos:', FP, '\t\t Precision(PPV):  ', PPV,'%'
+	print 'True pos:', TP, ' False neg:', FN, '\t Sensitivity(TPR):', TPR,'%'
+	print 'True neg:', TN, ' False pos:', FP, '\t Precision(PPV):  ', PPV,'%'
 	print 'Overall accuracy:', ACC,'%'
 	# for i in range(0,10):
 	# 	print prediction[i], target[i], confidence[i]

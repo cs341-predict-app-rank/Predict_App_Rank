@@ -141,7 +141,7 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp,
         predictSize: prediction dimension to generate label.
         success: win at least these sliding windows to label as successful.
     Output:
-        feature matrix, accumulate label and sliding window label.
+        feature matrix, accumulate label, sliding window label, prediction window.
     Application note: In this function, swipeOutInactiveApp(...) and
     generateAccumulateLabelByCol(...) are called with default parameters.
     """
@@ -153,7 +153,7 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp,
     accumulateLabel = generateAccumulateLabelByCol(predictMatrix.sum(1))
     eachWindowLabel = generateAccumulateLabelByCol(predictMatrix)
     slidingWindowLabel = (eachWindowLabel.sum(1) >= success)
-    return standardize(featureMatrix), accumulateLabel[:,None], slidingWindowLabel[:,None]
+    return standardize(featureMatrix), accumulateLabel[:,None], slidingWindowLabel[:,None], standardize(predictMatrix)
 
 def generateFeatureMatrixAndLabel(totalDataMatrix,
         windowSize = slidingWindowSize,
@@ -170,15 +170,15 @@ def generateFeatureMatrixAndLabel(totalDataMatrix,
         predictWindow: size of prediction window.
         success: win at least these sliding windows to label as successful.
     Output:
-        (train, test), each one contains (matrix, accumulate label, sliding window label).
+        (train, test), each one contains (matrix, accumulate label, sliding window label, predict window data).
     Application note: singlePredictTime(...) is called, where some
     default-parameter-function-call involve. Also, sample(...) is called
     by default parameter.
     """
     featureSize = featureWindow - windowSize + 1
     predictSize = predictWindow - windowSize + 1
-    train = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1))]
-    test = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1))]
+    train = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize))]
+    test = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize))]
     for predictTime in xrange(featureWindow, totalDataMatrix.shape[1] - predictSize):
         dataSet = singlePredictTime(totalDataMatrix, predictTime,
                 windowSize, featureSize, predictSize, success)

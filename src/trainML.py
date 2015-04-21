@@ -5,6 +5,7 @@ import sys
 import time
 import buildMLInput as bml
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.linear_model import *
 from sklearn.svm import *
 from sklearn.neighbors import *
@@ -52,7 +53,7 @@ def setInputParameters(bml):
 	bml.featureTimeWindow = 10
 	bml.slidingWindowSize = 4
 	bml.outOfSigmaSuccess = 1
-	bml.successThreshold = 5
+	bml.successThreshold = 4
 	bml.garbageThreshold = bml.featureTimeWindow * bml.WEEK # a download a day, keep doctors away.
 	bml.testPortion = 0.2
 	return bml
@@ -230,27 +231,63 @@ def getAccuracy(modelName, prediction, target):
 	# return 0
 	return TPR, TNR, ACC
 
+def plotResult(name, feature, real):
+	print [feature, real]
+	timeline1 = range(1, len(feature)+1)
+	timeline2 = range(len(feature)+1, len(feature)+len(real)+1)
+	tmp = range(len(feature),len(feature)+2)
+	between = [feature[len(feature)-1], real[0]]
+	print between
+	line1 = plt.plot(timeline1, feature, '-b', label= 'Known past',linewidth=2)
+	line2 = plt.plot(timeline2, real, '-r', label='Real future',linewidth=2)
+	line2 = plt.plot(tmp, between, '-.b', linewidth=2)
+	plt.title('Download performance of an App in one category')
+	legend = plt.legend(loc='upper right', shadow=True, fontsize='x-large')
+	plt.xlabel('Week number')
+	plt.ylabel('Number of sigma')
+	plt.grid(color='k', linestyle='-.', linewidth=1)
+	plt.axis([1,14, -3, 20])
+	ax = plt.gca()
+	ax.set_autoscale_on(False)
+	# plt.show(block=True)
+	plt.savefig( name + '.pdf')
+	plt.clf()
+	return 0
+
 
 if __name__ == '__main__':
 	timeStart = time.time()
 	bml = setInputParameters(bml)
 	train, test = bml.buildMatrix()
-	printMatrixInfo(train, test)
+	# printMatrixInfo(train, test)
 
 	trainFeature = train[0]	# feature matrix
 	trainTargetAcc = train[1][:,0]	# accumulated label
 	trainTargetSld = train[2][:,0]	# sliding window label
+	trainReal = train[3]
 	testFeature = test[0]	# feature matrix
 	testTargetAcc = test[1][:,0]	# accumulated label
 	testTargetSld = test[2][:,0]	# sliding window label
-
+	testReal = test[3]
 	# useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	# useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	prediction = useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# useSVM('Acc','poly', 2, 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	# useSVM('Sld','poly', 4, 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# prediction = usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# confidence = modelLog.decision_function(testFeature)
-	
+	num = 0
+	for i in range(0, len(prediction)):
+		if prediction[i] == 1 and testTargetSld[i] == 1:
+			plotResult(str(i),testFeature[i],testReal[i])
+			num = num +1
+			if num > 10:
+				break
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
+
+
+
+
+
+

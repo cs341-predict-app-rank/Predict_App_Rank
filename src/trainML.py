@@ -11,16 +11,16 @@ from sklearn.neighbors import *
 from sklearn.externals import joblib
 
 ############################################################################
-#	Function:
-# 		Implement different learing algorithms to predict good apps.
-# 	Input:
-# 		Raw matrix npz files, created by 'matrixBuild.py'
-# 		Data locates at Prediction_App_Trend/src/1/*
-# 			NOTE: Must set parameters in setInputParameters(bml)
-# 				e.g. bml.inputFile = filename to the input npz file   
-# 	Output:
-# 		Print prediction accuracy to screen.
-# 
+#	Function:															   #
+# 		Implement different learing algorithms to predict good apps.       #
+# 	Input:																   #
+# 		Raw matrix npz files, created by 'matrixBuild.py'				   #
+# 		Data locates at Prediction_App_Trend/src/1/*					   #
+# 			NOTE: Must set parameters in setInputParameters(bml)		   #
+# 				e.g. bml.inputFile = filename to the input npz file   	   #
+# 	Output:																   #
+# 		Print prediction accuracy to screen.                               #
+# 																		   #
 ############################################################################
 
 # default parameter values:
@@ -221,8 +221,9 @@ def getAccuracy(modelName, prediction, target):
 	PPV = TP/float(TP+FP)*100
 	ACC = (TP+TN)/num*100
 	print '\n<'+modelName+'>'
-	print 'True pos:', TP, ' False neg:', FN, '\t Sensitivity(TPR):', TPR,'%'
-	print 'True neg:', TN, ' False pos:', FP, '\t Precision(PPV):  ', PPV,'%'
+	print 'True pos:', TP, ' False neg:', FN,'\t Precision:', TP/float(TP+FN)*100,'%'
+	print 'False pos:', FP,' True neg:', TN,'\t Precision:', TN/float(FP+TN)*100,'%'
+	print 'Precision:', TP/float(TP+FP), '\t', TN/float(FN+TN)
 	print 'Overall accuracy:', ACC,'%'
 	# for i in range(0,10):
 	# 	print prediction[i], target[i], confidence[i]
@@ -234,7 +235,7 @@ if __name__ == '__main__':
 	timeStart = time.time()
 	bml = setInputParameters(bml)
 	train, test = bml.buildMatrix()
-	# printMatrixInfo(train, test)
+	printMatrixInfo(train, test)
 
 	trainFeature = train[0]	# feature matrix
 	trainTargetAcc = train[1][:,0]	# accumulated label
@@ -246,9 +247,9 @@ if __name__ == '__main__':
 	# useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
 	# useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# useSVM('Acc','poly', 2, 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	useSVM('Sld','poly', 4, 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	# useSVM('Sld','poly', 4, 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	# usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
+	usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
 	# confidence = modelLog.decision_function(testFeature)
 	
 	runTime = time.time() - timeStart

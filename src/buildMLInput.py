@@ -103,26 +103,28 @@ def standardize(featureMatrix):
     standardizedMatrix /= standardizedMatrix.std(0)
     return standardizedMatrix
 
-def sample(dataSet, testPortion = testPortion):
+def sample(dataSet, testPortion = testPortion, seed = 40):
     """
     Function: sample
         split whole dataset into training set and test set.
     Input:
         dataSet: a list or tuple of data to be sampled.
         testPortion: portion to be sampled as test set.
+        seed: random number seed.
     Output:
         training set and test set, as the same form with dataSet.
     """
     dataNum = dataSet[0].shape[0]
     sample = range(dataNum)
+    random.seed(seed)
     random.shuffle(sample)
     testNum = int(dataNum * testPortion)
     trainNum = dataNum - testNum
     train = [None] * len(dataSet)
     test = [None] * len(dataSet)
     for i in xrange(len(dataSet)):
-        train[i] = dataSet[i][0:trainNum]
-        test[i] = dataSet[i][trainNum:dataNum]
+        train[i] = dataSet[i][sample[0:trainNum]]
+        test[i] = dataSet[i][sample[trainNum:dataNum]]
     return train, test
 
 def singlePredictTime(totalDataMatrix, predictTimeStamp,

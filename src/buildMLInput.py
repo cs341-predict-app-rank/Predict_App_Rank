@@ -18,7 +18,7 @@ import random
 # Note: successThreshold <= predictTimeWindow - slidingWindowsize + 1      #
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
-inputFile = './Productivity/datamatrix_metric_1.npz'
+inputFile = './Social Networking/datamatrix_metric_1.npz'
 predictTimeWindow = 10
 featureTimeWindow = 10
 slidingWindowSize = 4
@@ -210,10 +210,20 @@ def plotDownloadInflation(filename = inputFile):
     """
     rawData = rawDataMatrix(inputFile)
     transformed = compressMatrix(rawData)
-    plt.subplot(1,2,1)
+    ax = plt.subplot(1,2,1)
+    plt.title('Raw download')
     plt.plot(rawData.sum(0).T)
-    plt.subplot(1,2,2)
+    plt.ticklabel_format(style = 'sci', axis = 'y', scilimits = (0,0))
+    x0,x1 = ax.get_xlim()
+    y0,y1 = ax.get_ylim()
+    ax.set_aspect((x1-x0)/(y1-y0))
+    ax = plt.subplot(1,2,2)
+    plt.title('Sliding window smoothened')
     plt.plot(transformed.sum(0).T)
+    plt.ticklabel_format(style = 'sci', axis = 'y', scilimits = (0,0))
+    x0,x1 = ax.get_xlim()
+    y0,y1 = ax.get_ylim()
+    ax.set_aspect((x1-x0)/(y1-y0))
     plt.show()
 
 if __name__ == '__main__':

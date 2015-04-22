@@ -238,6 +238,7 @@ def plotDownloadDistribution(filename = inputFile):
     dataPerApp = np.array(rawData.sum(1)).ravel()
     plt.hist(dataPerApp, bins = 10**np.linspace(0,8,100))
     plt.gca().set_xscale('log')
+    return
 
 if __name__ == '__main__':
     #train, test = buildMatrix()

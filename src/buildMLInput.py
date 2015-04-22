@@ -210,7 +210,7 @@ def plotDownloadInflation(filename = inputFile):
     Function: plotDownloadInflation
         Wrapper for plot download inflation
     """
-    rawData = rawDataMatrix(inputFile)
+    rawData = rawDataMatrix(filename)
     transformed = compressMatrix(rawData)
     ax = plt.subplot(1,2,1)
     plt.title('Raw download')
@@ -227,6 +227,18 @@ def plotDownloadInflation(filename = inputFile):
     y0,y1 = ax.get_ylim()
     ax.set_aspect((x1-x0)/(y1-y0))
     plt.show()
+    return
+
+def plotDownloadDistribution(filename = inputFile):
+    """
+    Function: plotDownloadDistribution
+        Wrapper for plot download distribution.
+    """
+    rawData = rawDataMatrix(filename)
+    dataPerApp = np.array(rawData.sum(1)).ravel()
+    plt.hist(dataPerApp, bins = 10**np.linspace(0,8,100))
+    plt.gca().set_xscale('log')
 
 if __name__ == '__main__':
-    train, test = buildMatrix()
+    #train, test = buildMatrix()
+    pass

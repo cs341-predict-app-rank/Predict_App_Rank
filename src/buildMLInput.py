@@ -18,7 +18,7 @@ import random
 # Note: successThreshold <= predictTimeWindow - slidingWindowsize + 1      #
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
-inputFile = './Social Networking/datamatrix_metric_1.npz'
+inputFile = './Productivity/datamatrix_metric_1.npz'
 predictTimeWindow = 10
 featureTimeWindow = 10
 slidingWindowSize = 4
@@ -250,6 +250,13 @@ def plotDownloadDistribution(filename=None):
     plt.hist(dataPerApp, bins = 10**np.linspace(0,binMax,100))
     plt.gca().set_xscale('log')
     return
+
+def plotPerWindowDistribution(compressedMatrix, windowIndex):
+    dataPerApp = compressedMatrix[:,windowIndex].toarray().ravel()
+    binMax = int(np.log10(dataPerApp.max()) + 0.5)
+    plt.hist(dataPerApp, bins = 10**np.linspace(0,binMax,100))
+    plt.gca().set_xscale('log')
+    #plt.gca().set_yscale('log')
 
 def randomPlot(filename=None):
     if filename is None: filename = inputFile

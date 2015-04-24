@@ -17,7 +17,7 @@ import random
 #   testPortion: the portion of data treating as test                      #
 # Note: successThreshold <= predictTimeWindow - slidingWindowsize + 1      #
 ############################################################################
-def buildMatrix(object):
+class buildMatrix(object):
     WEEK = 7 # don't change this, you know why :-)
     inputFile = './Social Networking/datamatrix_metric_1.npz'
     predictTimeWindow = 10
@@ -104,7 +104,7 @@ def buildMatrix(object):
         standardizedMatrix /= standardizedMatrix.std(0)
         return standardizedMatrix
 
-    def sample(dataSet, self.testPortion = testPortion, seed = 40):
+    def sample(dataSet, testPortion = self.testPortion, seed = 40):
         """
         Function: sample
             split whole dataset into training set and test set.
@@ -251,5 +251,5 @@ def buildMatrix(object):
         plt.show()
 
 if __name__ == '__main__':
-    #train, test = buildMatrix()
+    train, test = buildMatrix().buildMatrix()
     pass

@@ -18,7 +18,7 @@ import random
 # Note: successThreshold <= predictTimeWindow - slidingWindowsize + 1      #
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
-inputFile = './Productivity/datamatrix_metric_1.npz'
+inputFile = './1/Productivity/datamatrix_metric_1.npz'
 predictTimeWindow = 10
 featureTimeWindow = 10
 slidingWindowSize = 4
@@ -68,12 +68,12 @@ def swipeOutInactiveApp(downloadMatrix, predictMatrix, leastDownload=None):
         predictMatrix: also apply the cleaning on prediction, type scipy.sparse.*
         leastDownload: the least download within downloadMatrix to be consider.
     Output:
-        cleaned downloadMatrix and predictMatrix
+        cleaned downloadMatrix, predictMatrix and active index
     """
     if leastDownload is None: leastDownload = garbageThreshold
     totalDownload = np.array(downloadMatrix.sum(1)).ravel()
-    candidate = totalDownload > leastDownload
-    return downloadMatrix[candidate,:].toarray(), predictMatrix[candidate,:].toarray()
+    candidate = np.where(totalDownload > leastDownload)[0]
+    return downloadMatrix[candidate,:].toarray(), predictMatrix[candidate,:].toarray(), candidate[:,None]
 
 def generateAccumulateLabelByCol(dataMatrix, numberSigma=None):
     """
@@ -105,6 +105,17 @@ def standardize(featureMatrix):
     standardizedMatrix -= standardizedMatrix.mean(0)
     standardizedMatrix /= standardizedMatrix.std(0)
     return standardizedMatrix
+
+def normalize(featureMatrix):
+    """
+    Function: normalize
+        normalize feature matrix by col.
+    Input:
+        featureMatrix: each row is a data, each column is a feature.
+    Output:
+        normalized feature matrix.
+    """
+    return featureMatrix / featureMatrix.sum(0)
 
 def sample(dataSet, portionOfTestSet=None, seed=40):
     """
@@ -156,11 +167,16 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
     featureStartTime = featureEndTime - featureSize
     featureTotal = totalDataMatrix[:,featureStartTime:featureEndTime]
     predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
-    featureMatrix, predictMatrix = swipeOutInactiveApp(featureTotal, predictTotal)
+    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
     accumulateLabel = generateAccumulateLabelByCol(predictMatrix.sum(1))
     eachWindowLabel = generateAccumulateLabelByCol(predictMatrix)
     slidingWindowLabel = (eachWindowLabel.sum(1) >= success)
-    return standardize(featureMatrix), accumulateLabel[:,None], slidingWindowLabel[:,None], standardize(predictMatrix)
+    predictTimeCol = np.ones(remainingIndex.shape[0], dtype='int')[:,None]
+    return (standardize(featureMatrix),
+            accumulateLabel[:,None],
+            slidingWindowLabel[:,None],
+            standardize(predictMatrix),
+            np.hstack((remainingIndex, predictTimeCol)))
 
 def generateFeatureMatrixAndLabel(totalDataMatrix, windowSize=None,
         featureWindow=None, predictWindow=None, success=None):
@@ -185,13 +201,12 @@ def generateFeatureMatrixAndLabel(totalDataMatrix, windowSize=None,
     if success is None: success = successThreshold
     featureSize = featureWindow - windowSize + 1
     predictSize = predictWindow - windowSize + 1
-    print "Feature dimension",featureSize
-    train = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize))]
-    test = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize))]
+    train = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize)), np.zeros((0,2),dtype='int')]
+    test = [np.zeros((0, featureSize)), np.zeros((0,1)), np.zeros((0,1)), np.zeros((0, predictSize)), np.zeros((0,2),dtype='int')]
     for predictTime in xrange(featureWindow, totalDataMatrix.shape[1] - predictSize):
         dataSet = singlePredictTime(totalDataMatrix, predictTime,
                 windowSize, featureSize, predictSize, success)
-        singleTrain, singleTest = sample(dataSet)
+        singleTrain, singleTest = sample(dataSet, None, predictTime)
         for i in range(len(train)):
             train[i] = np.vstack((train[i],singleTrain[i]))
             test[i] = np.vstack((test[i],singleTest[i]))

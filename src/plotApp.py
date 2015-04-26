@@ -16,8 +16,10 @@ def plotAppWithRow (row_date_list,
     Function: plotAppWithRow
         plot the historical metric of given apps. One plot will be generated for each app, and will indicate
         the app's name and the given time. 
+
     Input:
-        row_date_list: a list of tuples of app row index and date.
+        row_date_list: A list. Each element of the list is a tuple corresponding to a data point, that is an app at a specific date. First element of each
+        tuple is the apps row index, and the second element is the date number. 
         market: the market (1 or 3). If not provided user will have to input it interactively.
         category: the category of the provided app. If not provided user will have to input it interactively.
         metric: the metric to plot. default is 1 (free downloads). 
@@ -31,6 +33,10 @@ def plotAppWithRow (row_date_list,
     Output:
         The results will be saved to the given directory. 
         The function will return a dict: idx -> name.
+
+    Example:
+        data = [(1000, 200), (1500, 300)]  #we would like to plot the app with idx 1000 at day 200 and app with idx at day 300
+        dict = plotAppWithRow(data, 1,'Business', 1, 'sample_usr', 'sample_password') #generate the plot and return a name dict
     """
 
     #setup connection configuration and connect to the db
@@ -86,13 +92,18 @@ def plotAppWithRow (row_date_list,
         if (len(name) == 0):
             print 'Warning: index ' + item[0].__str__() + ' cannot be found in the database!'
         else:
-            name = name[0][0].encode('ascii')
+            try:
+                name = name[0][0].encode('ascii')
+            except:
+                print 'Warning: name of app at index ' + item[0].__str__() + ' cannot be converted to ascii!'
+                continue
+
             name_dict[item[0]] = name
             plt.plot(range(num_of_dates), data_matrix[item[0], :].todense().T, label = 'data')
             plt.axvline(x = item[1], linestyle = '--')
             plt.title(name)
             plt.legend(loc = 2, title = 'metric: ' + metric.__str__()) 
-            plt.savefig(output_path + name + '_metric_' + metric.__str__() + '.pdf')
+            plt.savefig(output_path + name + '_metric_' + metric.__str__() + '_date_' + (item[1]).__str__()+ '.pdf')
             plt.clf()
 
     #clean up
@@ -100,6 +111,8 @@ def plotAppWithRow (row_date_list,
     cn.close()
 
     return name_dict
+
+
 
 
 

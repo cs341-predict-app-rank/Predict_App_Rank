@@ -45,7 +45,7 @@ def get_category(cursor, mrkt_num):
     cate = cursor.fetchall()
     return cate
 
-def get_data_in_one_category(cursor, mrkt_num, cate_name, limit):
+def get_data_in_one_category(cursor, mrkt_num, cate_name, limit = ''):
     query = ('SELECT rank_date, data FROM TopCharts '
             'WHERE market = %s'
             ' and category = "%s"'

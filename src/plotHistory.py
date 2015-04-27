@@ -8,7 +8,7 @@ from os.path import expanduser
 home = expanduser("~")
 
 def queryId(cursor, appname):
-    query = 'SELECT id, name FROM Products WHERE UPPER(name) LIKE UPPER("%s")' % (appname+'%')
+    query = 'SELECT id, name FROM Products WHERE UPPER(name) LIKE UPPER("%s")' % appname
     print query
     cursor.execute(query)
     result = cursor.fetchall()
@@ -84,7 +84,8 @@ def queryInfo(cursor, appname, metric):
             plt.plot(range(rank.shape[1]), rank[0,:], label = 'data')
             plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric))
             plt.title('Rank of App:' + tmp_name + 'in Cate:' + category)
-            plt.axis([1, 900 ,1000, 1])
+            if max(rank[0,:]) > 1000:
+                plt.axis([1, 900 ,1000, 1])
             plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + 'rank' + '.pdf')
             # plt.show()
             plt.clf()

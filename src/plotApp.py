@@ -102,9 +102,9 @@ def plotAppWithRow (row_date_list,
 
             name_dict[item[0]] = name
             plt.plot(range(plot_begin_date, plot_end_date), data_matrix[item[0], plot_begin_date:plot_end_date].todense().T, label = 'data')
-            plt.axvline(x = item[1], linestyle = '--')
-            plt.axvline(x = max([item[1] - 70, 0]), linestyle = '--')
-            plt.axvline(x = min([item[1] + 70, num_of_dates - 1]), linestyle = '--')
+            plt.axvline(x = item[1], linestyle = '--', color = 'g')
+            plt.axvline(x = max([item[1] - 12*7, 0]), linestyle = '--', color = 'r')
+            plt.axvline(x = min([item[1] + 12*7, num_of_dates - 1]), linestyle = '--', color = 'r')
 
             plt.title(name)
             plt.legend(loc = 2, title = 'metric: ' + metric.__str__() + ' category: ' + category) 

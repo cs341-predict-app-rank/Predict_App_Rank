@@ -8,6 +8,7 @@ import pprint as pp
 import zlib
 import struct
 import time
+import os 
 from glob import glob
 from tempfile import TemporaryFile
 import datetime
@@ -130,6 +131,7 @@ if __name__ == '__main__':
         start = time.time()
         cate_data = get_data_in_one_category(cursor, mrkt_num, cate[i][0])# only inculde iphone in US
         cate_name = get_cate_name(cate[i][0])
+        print 'Got data for', cate_name, '\t','Run time:', (time.time()-start)
         # get index from product_category_lookup
         index = get_idx_in_one_category(cursor, mrkt_num, cate_name)
         print 'Got index.','\t','Run time:', (time.time()-start)
@@ -155,7 +157,9 @@ if __name__ == '__main__':
                     pass
                     # print 'Cannot find index for id =', '\'',app_id,'\''
         print 'Finish Matrix:',cate_name,'\t','Index #:',len(index), '\t', 'Mtx element #:', mtx_gros.nnz,'\t','Day #:',date+1, 'Run time:', (time.time()-start)
-        filename = cate_name + '.us.iphone.npz'
+        if not os.path.exists('rank/'):
+            os.makedirs('rank')
+        filename = 'rank/' + cate_name + '.us.iphone.npz'
         np.savez(filename, mtx_gros = mtx_gros)
 
     #clean up

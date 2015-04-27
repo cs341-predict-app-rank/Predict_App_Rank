@@ -53,7 +53,7 @@ def queryRankMatrix(market, category, idx):
         return None
     return whole_matrix[idx, :]
 
-def queryInfo(cursor, appname, metric):
+def queryInfo(cursor, appname, metric, show):
     id_list, name_list = queryId(cursor, appname)
     if not id_list:
         print "Query Failed"
@@ -72,8 +72,8 @@ def queryInfo(cursor, appname, metric):
         if row is not None:
             row = np.array(row.todense()[0,:-6])
             plt.plot(range(row.shape[1]), row[0,:], label = 'data')
-            plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric))
-            plt.title('Download of App:' + tmp_name + 'in Cate:' + category)
+            plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric)+ '\n Cate:' + category)
+            plt.title('Download of App:' + tmp_name )
             plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + '_metric_' + str(metric) + '.pdf')
             plt.clf()
         rank = queryRankMatrix(market, category, idx)
@@ -82,17 +82,20 @@ def queryInfo(cursor, appname, metric):
             rank += 999 * (rank == 0)
             # print rank[0,:]
             plt.plot(range(rank.shape[1]), rank[0,:], label = 'data')
-            plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric))
-            plt.title('Rank of App:' + tmp_name + 'in Cate:' + category)
+            plt.legend(loc = 2, title = 'product id: ' + id_list[i] + '\n' + 'metric: ' + str(metric)+ '\n Cate:' + category)
+            plt.title('Rank of App:' + tmp_name + ' in Cate:' + category)
             if max(rank[0,:]) > 1000:
                 plt.axis([1, 900 ,1000, 1])
+            else: plt.axis([1, 900 ,max(rank[0,:])+1, 1])
             plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + 'rank' + '.pdf')
-            # plt.show()
+            if show == '-s':
+                plt.show()
             plt.clf()
 
 if __name__ == '__main__':
     username = sys.argv[1]
     password = sys.argv[2]
+    show = sys.argv[3]
     connection, cursor = setup_connection(username, password)
     while(True):
         print "App name: "
@@ -107,6 +110,6 @@ if __name__ == '__main__':
             close_connection(connection, cursor)
             exit(0)
         else: metric = int(metric)
-        error = queryInfo(cursor, appname, metric)
+        error = queryInfo(cursor, appname, metric, show)
         if error is not None:
             print "App not found in such metric"

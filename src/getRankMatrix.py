@@ -11,7 +11,7 @@ And a dict to map appid to row index is also created for each category.
 Usage: python getRankMatrix.py username password
     Username and password should not be contained in code because we ARE OPEN SOURCE!
 
-Output: category_name.us.iphone.npz
+Output: rank/category_name.us.iphone.npz
     Each file contains a matrix 'mtx_gros'. In that matrix, each row represents an app,
     each column represents a day, and each element is the rank among all 'free' and 'paid'
     apps, so that it's the 'grossing' matrix. The relationship between row index and app 
@@ -29,6 +29,7 @@ import pprint as pp
 import zlib
 import struct
 import time
+import os
 from glob import glob
 from tempfile import TemporaryFile
 import datetime
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     # for each category get its app rank data and transform it to a matrix  
     for i in range(8, len(cate)):
         start = time.time()
-        cate_data = getDataByCate(cursor, mrkt_num, cate[i][0], "limit 10")# only inculde iphone in US
+        cate_data = getDataByCate(cursor, mrkt_num, cate[i][0])# only inculde iphone in US
         cate_name = getCateName(cate[i][0])
         
         # get index from product_category_lookup
@@ -162,7 +163,9 @@ if __name__ == '__main__':
                     pass
                     # print 'Cannot find index for id =', '\'',app_id,'\''
         print 'Finish Matrix:',cate_name,'\t','Index #:',len(index), '\t', 'Mtx element #:', mtx_gros.nnz,'\t','Day #:',date+1, 'Run time:', (time.time()-start)
-        filename = cate_name + '.us.iphone.npz'
+        if not os.path.exists('rank'):
+            os.makedirs('rank')
+        filename = 'rank/' + cate_name + '.us.iphone.npz'
         np.savez(filename, mtx_gros = mtx_gros)
 
     #clean up

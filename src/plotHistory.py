@@ -7,6 +7,19 @@ import os
 from os.path import expanduser
 home = expanduser("~")
 
+"""
+Function: This script draw Daily Download and Rank Data of apps. For each
+
+Usage: python plotHistory.py username password -s 
+    -s : show plot and save plot to pdf
+    -n : only save plot to pdf
+Username and password should not be contained in code because we ARE OPEN SOURCE!
+
+NOTE: you can add '%' to the left or right side of your app name to do partial match.
+
+"""
+
+
 def queryId(cursor, appname):
     query = 'SELECT id, name FROM Products WHERE UPPER(name) LIKE UPPER("%s")' % appname
     print query

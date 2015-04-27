@@ -135,7 +135,7 @@ if __name__ == '__main__':
     # for each category get its app rank data and transform it to a matrix  
     for i in range(8, len(cate)):
         start = time.time()
-        cate_data = getDataByCate(cursor, mrkt_num, cate[i][0])# only inculde iphone in US
+        cate_data = getDataByCate(cursor, mrkt_num, cate[i][0],'')# only inculde iphone in US
         cate_name = getCateName(cate[i][0])
         
         # get index from product_category_lookup

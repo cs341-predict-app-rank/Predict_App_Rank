@@ -97,12 +97,17 @@ def plotAppWithRow (row_date_list,
             except:
                 print 'Warning: name of app at index ' + item[0].__str__() + ' cannot be converted to ascii!'
                 continue
+            plot_begin_date = max([item[1] - 100, 0])
+            plot_end_date = min([item[1] + 100, num_of_dates - 1])
 
             name_dict[item[0]] = name
-            plt.plot(range(num_of_dates), data_matrix[item[0], :].todense().T, label = 'data')
+            plt.plot(range(plot_begin_date, plot_end_date), data_matrix[item[0], plot_begin_date:plot_end_date].todense().T, label = 'data')
             plt.axvline(x = item[1], linestyle = '--')
+            plt.axvline(x = max([item[1] - 70, 0]), linestyle = '--')
+            plt.axvline(x = min([item[1] + 70, num_of_dates - 1]), linestyle = '--')
+
             plt.title(name)
-            plt.legend(loc = 2, title = 'metric: ' + metric.__str__()) 
+            plt.legend(loc = 2, title = 'metric: ' + metric.__str__() + ' category: ' + category) 
             plt.savefig(output_path + name + '_metric_' + metric.__str__() + '_date_' + (item[1]).__str__()+ '.pdf')
             plt.clf()
 
@@ -112,6 +117,8 @@ def plotAppWithRow (row_date_list,
 
     return name_dict
 
+if __name__ == '__main__':
+    plotAppWithRow([(299, 100)], 3, 'Business', 1)
 
 
 

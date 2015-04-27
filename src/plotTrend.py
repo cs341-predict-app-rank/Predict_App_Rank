@@ -24,18 +24,23 @@ def queryDownloadMatrix(market, category, idx, metric):
     category_dir = market_dir + '/' + category
     filename = category_dir + '/datamatrix_metric_' + str(metric) + '.npz'
     try: whole_matrix = csrLoad(filename)
-    except IOError: print "File not exist!"; return None
+    except IOError: 
+        print "File not exist!", filename
+        return None
     return whole_matrix[idx, :]
 
 def queryRankMatrix(market, category, idx):
     if market == 1: market_name = '.iphone'
     elif market == 3: market_name = '.android'
     country = '.us'
-    directory = home + '/wenbo/'
+    directory = 'rank/'
     filename = directory + category + country + market_name + '.npz'
-    print filename
-    try: whole_matrix = np.load(filename)['mtx_gros'][()]
-    except IOError: print "File not exist!"; return None
+    try: 
+        whole_matrix = np.load(filename)['mtx_gros'][()]
+        print 'Load', filename
+    except IOError: 
+        print "File not exist!", filename
+        return None
     return whole_matrix[idx, :]
 
 def queryInfo(cursor, appname, metric):
@@ -60,6 +65,7 @@ def queryInfo(cursor, appname, metric):
             plt.plot(range(rank.shape[1]), rank[0,:], label = 'data')
             plt.legend(loc = 2, title = 'product id: ' + id_list[i])
             plt.title(appname)
+            plt.axis([1,900 ,3000, 1])
             plt.savefig(appname + '_' + str(i) + '_market_' + str(market) + 'rank' + '.pdf')
             plt.clf()
 

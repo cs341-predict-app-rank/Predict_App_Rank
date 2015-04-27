@@ -15,8 +15,10 @@ Usage: python plotHistory.py username password -s
     -n : only save plot to pdf
 Username and password should not be contained in code because we ARE OPEN SOURCE!
 
-NOTE: you can add '%' to the left or right side of your app name to do partial match.
-
+NOTE: 
+    you can add '%' to the left or right side of your app name to do partial match.
+    use this to copy rank file to local dir:
+    $scp -r -i Haoming.pem ec2-user@54.68.56.76:./Predict_App_Rank/src/rank/* ./rank/
 """
 
 

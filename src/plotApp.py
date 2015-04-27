@@ -117,9 +117,6 @@ def plotAppWithRow (row_date_list,
 
     return name_dict
 
-if __name__ == '__main__':
-    plotAppWithRow([(299, 100)], 3, 'Business', 1)
-
 
 
 

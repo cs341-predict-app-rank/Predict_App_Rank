@@ -20,15 +20,15 @@ import random
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
 EPSILON = 0.000001
-inputFile = './1/Productivity/datamatrix_metric_1.npz'
-predictTimeWindow = 10
-featureTimeWindow = 10
+inputFile = './1/Social Networking/datamatrix_metric_1.npz'
+predictTimeWindow = 12
+featureTimeWindow = 12
 slidingWindowSize = 4
 outOfSigmaSuccess = 1
 successThreshold = 5
 garbageThreshold = featureTimeWindow * WEEK # a download a day, keep doctors away.
 testPortion = 0.2
-top = 100
+top = 60
 
 def rawDataMatrix(inputFile):
     """
@@ -195,7 +195,7 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
     accumulateLabel = generateAccumulateLabelByCol(predictMatrix.sum(1), numberOfSigma)
     eachWindowLabel = generateAccumulateLabelByCol(predictMatrix, numberOfSigma)
     slidingWindowLabel = (eachWindowLabel.sum(1) >= success)
-    predictTimeCol = np.ones(remainingIndex.shape[0], dtype='int')[:,None]
+    predictTimeCol = np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
     return (standardize(featureMatrix),
             accumulateLabel[:,None],
             slidingWindowLabel[:,None],
@@ -238,7 +238,7 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, standardizeMethod=No
     incrementalLabel = np.logical_and(firstFailLabel, lastSuccessLabel)
     accumulateLabel = np.logical_or(incrementalLabel, consistentLabel)
     #accumulateLabel = incrementalLabel
-    predictTimeCol = np.ones(remainingIndex.shape[0], dtype='int')[:,None]
+    predictTimeCol = 7 * predictTimeStamp * np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
     if standardizeMethod is not None:
         return (standardizeMethod(featureMatrix),
                 accumulateLabel[:,None],

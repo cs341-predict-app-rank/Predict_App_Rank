@@ -20,7 +20,7 @@ import random
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
 EPSILON = 0.000001
-inputFile = './1/Social Networking/datamatrix_metric_1.npz'
+inputFile = './1/Productivity/datamatrix_metric_1.npz'
 predictTimeWindow = 12
 featureTimeWindow = 12
 slidingWindowSize = 4
@@ -29,6 +29,7 @@ successThreshold = 5
 garbageThreshold = featureTimeWindow * WEEK # a download a day, keep doctors away.
 testPortion = 0.2
 top = 60
+percent = 0.8
 
 def rawDataMatrix(inputFile):
     """
@@ -113,6 +114,28 @@ def generateTopkLabelByCol(dataMatrix, k=None):
     topkIndex = np.argpartition(dataMatrix, dataMatrix.shape[0] - k, axis=0)[-k:,:]
     for colIdx in xrange(topkIndex.shape[1]):
         label[topkIndex[:,colIdx], colIdx] = 1
+    return label
+
+def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
+    """
+    Function: generateTopkLabelByCol
+        Generate top percent download label for each column.
+    Input:
+        dataMatrix: data to generate label, type numpy array.
+        percentOfDownloads: Top Download percent.
+    Output:
+        matrix as same shape with dataMatrix, elements are 0 or 1.
+    """
+    if percentOfDownloads is None: percentOfDownloads = percent
+    label = np.zeros(dataMatrix.shape)
+    argOrder = (-dataMatrix).argsort(0)
+    sortedData = -np.sort(-dataMatrix, axis=0)
+    scan = sortedData.cumsum(axis=0)
+    expectedDownload = dataMatrix.sum(0) * percentOfDownloads
+    trueIndex = scan < expectedDownload
+    for i in xrange(dataMatrix.shape[1]):
+        indexThisCol = argOrder[trueIndex[:,i].ravel(),i]
+        label[indexThisCol, i] = True
     return label
 
 def standardize(featureMatrix):
@@ -202,22 +225,22 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
             standardize(predictMatrix),
             np.hstack((remainingIndex, predictTimeCol)))
 
-def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, standardizeMethod=None,
+def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, topkMethod=generateTopkPercentLabelByCol,
         windowSize=None, featureSize=None, predictSize=None,
-        failTime=2, successTime=2, topk=None):
+        failTime=2, successTime=2, standardizeMethod=None):
     """
     Function: singlePredictTimeNew
         Give a predict time, generate features and labels.
     Input:
         totalDataMatrix: the complete data matrix.
         predictTimeStamp: time to start prediction.
+        topkMethod: Method to generate label.
         standardizeMethod: method for standardization.
         windowSize: size of sliding window.
         featureSize: feature dimension.
         predictSize: prediction dimension to generate label.
         failTime: Fail as least first several windows to be considered as incremental.
         successTime: Fail as least last several windows to be considered as incremental.
-        topk: Top k to be considered as good.
     Output:
         feature matrix, label, prediction window, and corresponding index.
     Application note: In this function, swipeOutInactiveApp(...) is called with default parameters.
@@ -225,30 +248,31 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, standardizeMethod=No
     if windowSize is None: windowSize = slidingWindowSize
     if featureSize is None: featureSize = featureTimeWindow - slidingWindowSize + 1
     if predictSize is None: predictSize = predictTimeWindow - slidingWindowSize + 1
-    if topk is None: topk = top
     featureEndTime = predictTimeStamp - windowSize + 1
     featureStartTime = featureEndTime - featureSize
     featureTotal = totalDataMatrix[:,featureStartTime:featureEndTime]
     predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
     featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
-    eachWindowLabel = generateTopkLabelByCol(predictMatrix, topk)
+    eachWindowLabel = topkMethod(predictMatrix)
     consistentLabel = eachWindowLabel.sum(1) >= (predictSize - EPSILON)
     firstFailLabel = eachWindowLabel[:,:failTime].sum(1) < EPSILON
     lastSuccessLabel = eachWindowLabel[:,-successTime:].sum(1) > (successTime - EPSILON)
     incrementalLabel = np.logical_and(firstFailLabel, lastSuccessLabel)
     accumulateLabel = np.logical_or(incrementalLabel, consistentLabel)
-    #accumulateLabel = incrementalLabel
     predictTimeCol = 7 * predictTimeStamp * np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
+    baselineLabel = topkMethod(featureMatrix).sum(1) >= (featureSize - EPSILON)
     if standardizeMethod is not None:
         return (standardizeMethod(featureMatrix),
                 accumulateLabel[:,None],
                 standardizeMethod(predictMatrix),
-                np.hstack((remainingIndex, predictTimeCol)))
+                np.hstack((remainingIndex, predictTimeCol)),
+                baselineLabel[:,None])
     else:
         return (featureMatrix,
                 accumulateLabel[:,None],
                 predictMatrix,
-                np.hstack((remainingIndex, predictTimeCol)))
+                np.hstack((remainingIndex, predictTimeCol)),
+                baselineLabel[:,None])
 
 def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTimeNew,
         windowSize=None, featureWindow=None, predictWindow=None, success=None, normalizeFlag=False):

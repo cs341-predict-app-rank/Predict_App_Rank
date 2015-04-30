@@ -225,7 +225,8 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
             standardize(predictMatrix),
             np.hstack((remainingIndex, predictTimeCol)))
 
-def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, topkMethod=generateTopkPercentLabelByCol,
+def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
+        topkMethod=generateTopkPercentLabelByCol,
         windowSize=None, featureSize=None, predictSize=None,
         failTime=2, successTime=2, standardizeMethod=None):
     """
@@ -234,7 +235,7 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp, topkMethod=generateT
     Input:
         totalDataMatrix: the complete data matrix.
         predictTimeStamp: time to start prediction.
-        topkMethod: Method to generate label.
+        #topkMethod: Method to generate label.
         standardizeMethod: method for standardization.
         windowSize: size of sliding window.
         featureSize: feature dimension.
@@ -305,7 +306,7 @@ def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTim
         if normalizeFlag:
             dataSet = singleMethod(totalDataMatrix, predictTime)
         else:
-            dataSet = singleMethod(totalDataMatrix, predictTime, normalize)
+            dataSet = singleMethod(totalDataMatrix, predictTime, standardizeMethod=normalize)
         singleTrain, singleTest = sample(dataSet, predictTime)
         for i in xrange(len(singleTrain)):
             if i >= len(train):

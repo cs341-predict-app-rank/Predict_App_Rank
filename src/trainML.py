@@ -6,6 +6,7 @@ import time
 import buildMLInput as bml
 import numpy as np
 import matplotlib.pyplot as plt
+from plotApp import *
 from sklearn.linear_model import *
 from sklearn.svm import *
 from sklearn.neighbors import *
@@ -26,6 +27,8 @@ from sklearn.externals import joblib
 
 # default parameter values:
 ModelFileDir = 'models/' # save existing model in this dir
+CategoryName = 'Productivity'
+FeatureMatrixMultiplier = 10000
 
 def setInputParameters(bml):
 	"""
@@ -48,14 +51,17 @@ def setInputParameters(bml):
 
 	"""
 	bml.WEEK = 7 # don't change this, you know why :-)
-	bml.inputFile = './1/Productivity/datamatrix_metric_1.npz'
-	bml.predictTimeWindow = 10
-	bml.featureTimeWindow = 10
+	bml.EPSILON = 0.000001
+	bml.inputFile = './1/'+ CategoryName +'/datamatrix_metric_1.npz'
+	bml.predictTimeWindow = 12
+	bml.featureTimeWindow = 12
 	bml.slidingWindowSize = 4
 	bml.outOfSigmaSuccess = 1
-	bml.successThreshold = 4
+	bml.successThreshold = 5
 	bml.garbageThreshold = bml.featureTimeWindow * bml.WEEK # a download a day, keep doctors away.
 	bml.testPortion = 0.2
+	bml.top = 60
+	bml.percent = 0.8
 	return bml
 
 def printMatrixInfo(train, test):
@@ -69,32 +75,32 @@ def printMatrixInfo(train, test):
 	"""
 	print '\n==== Train Matrix Info ===='
 	print 'Train Feature Matrix:   ',len(train[0][:,0]),',',len(train[0][0,:])
-	print 'Train Accumulate Label: ',len(train[1][:,0]),',',len(train[1][0,:])
-	print 'Train slidingWin Label: ',len(train[2][:,0]),',',len(train[2][0,:])
+	print 'Train Label: ',len(train[1][:,0]),',',len(train[1][0,:])
+	print 'Train Baseline Label: ',len(train[4][:,0]),',',len(train[4][0,:])
 	same1 = 0.0
 	same0 = 0.0
 	for idx in range(0,len(train[1][:,0])):
-		if train[1][idx][0] == 1 and train[1][idx][0] == train[2][idx][0]:
+		if train[1][idx][0] == 1 and train[1][idx][0] == train[4][idx][0]:
 			same1 = same1 + 1
-		if train[1][idx][0] == 0 and train[1][idx][0] == train[2][idx][0]:
+		if train[1][idx][0] == 0 and train[1][idx][0] == train[4][idx][0]:
 			same0 = same0 + 1
-	print 'Positive Accumulate Label #:', sum(train[1][:,0])
-	print 'Positive SlidingWin Label #:', sum(train[2][:,0])
-	print 'Both Postive Label        #:', same1, '(',same1/float(sum(train[1][:,0])), '%)'
+	print 'Positive Label          #:', sum(train[1][:,0])
+	print 'Positive Baseline Label #:', sum(train[4][:,0])
+	print 'Both Postive Label      #:', same1, '(',same1/float(sum(train[1][:,0])), ')'
 	print '\n==== Test Matrix Info ===='
 	print 'Test Feature Matrix: ',len(test[0][:,0]),',',len(test[0][0,:])
-	print 'Test Accumulate Label: ',len(test[1][:,0]),',',len(test[1][0,:])
-	print 'Test slidingWin Label: ',len(test[2][:,0]),',',len(test[2][0,:])
+	print 'Test Label: ',len(test[1][:,0]),',',len(test[1][0,:])
+	print 'Test Baseline Label: ',len(test[4][:,0]),',',len(test[4][0,:])
 	same1 = 0.0
 	same0 = 0.0
 	for idx in range(0,len(test[1][:,0])):
-		if test[1][idx][0] == 1 and test[1][idx][0] == test[2][idx][0]:
+		if test[1][idx][0] == 1 and test[1][idx][0] == test[4][idx][0]:
 			same1 = same1 + 1
-		if test[1][idx][0] == 0 and test[1][idx][0] == test[2][idx][0]:
+		if test[1][idx][0] == 0 and test[1][idx][0] == test[4][idx][0]:
 			same0 = same0 + 1
-	print 'Positive Accumulate Label #:', sum(test[1][:,0])
-	print 'Positive SlidingWin Label #:', sum(test[2][:,0])
-	print 'Both Postive Label        #:', same1, '(',same1/float(sum(test[1][:,0])), '%)'
+	print 'Positive Label          #:', sum(test[1][:,0])
+	print 'Positive Baseline Label #:', sum(test[4][:,0])
+	print 'Both Postive Label      #:', same1, '(',same1/float(sum(test[1][:,0])), ')'
 
 def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	"""
@@ -115,8 +121,8 @@ def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
 	label = label + '.'+ str(loss) + '.' + str(penalty) + '.' + str(regularization_strength) 
-	TPR, TNR, ACC = getAccuracy('LogisticSGD.Train.'+label, prediction1, Y1)
-	TPR, TNR, ACC = getAccuracy('LogisticSGD.Test.'+label, prediction2, Y2)
+	getAccuracy('LogisticSGD.Train.'+label, prediction1, Y1)
+	getAccuracy('LogisticSGD.Test.'+label, prediction2, Y2)
 	return prediction2
 
 def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
@@ -139,12 +145,13 @@ def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
 		model = joblib.load(modelFileName)
 	except:
 		model = SVC(kernel = kernel, degree = degree, C = penalty)
+		print '\nStart training SVM ...'
 		model.fit(X1,Y1)
 		joblib.dump(model, modelFileName)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
-	TPR, TNR, ACC = getAccuracy('SVM.Train.'+label, prediction1, Y1)
-	TPR, TNR, ACC = getAccuracy('SVM.Test.'+label, prediction2, Y2)
+	getAccuracy('SVM.Train.'+label, prediction1, Y1)
+	getAccuracy('SVM.Test.'+label, prediction2, Y2)
 	return prediction2
 
 def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
@@ -201,6 +208,16 @@ def kernelkNN(kernel, threshold, dist, idx, Y1):
 		return 0
 
 def getAccuracy(modelName, prediction, target):
+	'''
+	Function: compute and print confusion matrix
+	Input:
+		modelName: str, to distinguish print contents
+		prediction: array, prediction label array
+		target: array, target label array
+	Output:
+		print confusion matrix
+		return: true positive #, fale negative #, false positive #, true negative #
+	'''
 	TP = 0
 	FP = 0
 	TN = 0
@@ -217,21 +234,28 @@ def getAccuracy(modelName, prediction, target):
 				TN = TN + 1
 			else:
 				FN = FN + 1
-	TPR = TP/float(TP+FN)*100
-	TNR = TN/float(TN+FP)*100
-	PPV = TP/float(TP+FP)*100
-	ACC = (TP+TN)/num*100
+	ACC = (TP/float(TP+FP+0.01) + TN/float(TN+FN+0.01))/2
 	print '\n<'+modelName+'>'
-	print 'True pos:', TP, ' False neg:', FN,'\t Precision:', TP/float(TP+FN)*100,'%'
-	print 'False pos:', FP,' True neg:', TN,'\t Precision:', TN/float(FP+TN)*100,'%'
-	print 'Precision:', TP/float(TP+FP), '\t', TN/float(FN+TN)
+	print 'True pos:', TP, ' False neg:', FN,'\t Precision:', (TP+0.01)/float(TP+FN+0.01)*100,'%'
+	print 'False pos:', FP,' True neg:', TN,'\t Precision:', (TN+0.01)/float(FP+TN+0.01)*100,'%'
+	print 'Precision:', TP/float(TP+FP+0.01), '\t', TN/float(FN+TN+0.01)
+	print 'TP/P:', TP/float(TP+FP+0.01), 'TN/N:', TN/float(TN+FN+0.01)
 	print 'Overall accuracy:', ACC,'%'
 	# for i in range(0,10):
 	# 	print prediction[i], target[i], confidence[i]
 	# return 0
-	return TPR, TNR, ACC
+	return TP, FN, FP, TN
 
-def plotResult(name, feature, real):
+def plotResultOnFeature(name, feature, real):
+	'''
+	Function: plot feature 
+	Input:
+		modelName: str, to distinguish the plot
+		feature: array, 
+		array: array,
+	Output:
+		plot
+	'''
 	print [feature, real]
 	timeline1 = range(1, len(feature)+1)
 	timeline2 = range(len(feature)+1, len(feature)+len(real)+1)
@@ -254,35 +278,92 @@ def plotResult(name, feature, real):
 	plt.clf()
 	return 0
 
+def plotResultOnDownload(name, 
+						idx, 
+						market = None, 
+	                    category = None, 
+	                    metric = 1, 
+	                    db_user = None, 
+	                    db_pswd = None, 
+	                    matrix_path = './', 
+	                    output_path = 'plots/'):
+	'''
+	Function: plot download
+	Input:
+		name: str, to distinguish the plot
+		idx: A list. Each element of the list is a tuple corresponding to a data point, that is an app at a specific date. First element of each
+        tuple is the apps row index, and the second element is the date number. 
+        market: the market (1 or 3). If not provided user will have to input it interactively.
+        category: the category of the provided app. If not provided user will have to input it interactively.
+        metric: the metric to plot. default is 1 (free downloads). 
+        db_user: username of the database. If not provided user will have to input it interactively.
+        db_pswd: password of the database. If not provided user will have to input it interactively. 
+        matrix_path: the directory in which the data matrices are stored, i.e., the super directory of folder 1 and 3. 
+        The default is the current directory. 
+        output_path: the directory in which the output figures will be saved. The default is plots/market/category where
+        market/category is the actual market number/category name. 
+	Output:
+		plot
+	'''
+	print name
+	plotAppWithRow(idx, market, category, metric, db_user, db_pswd, matrix_path, output_path)
+	return 0
+
+def compareWithBaseline(modelName, prediction, baseline):
+	getAccuracy(modelName, prediction, baseline)
+	return 0
+
+def addFiniteDiff(feature):
+	rowLen = feature.shape[0]
+	colLen = feature.shape[1]
+	newfeature = np.zeros((rowLen, colLen * 2 - 1))
+	for i in range(0, rowLen - 1):
+		newfeature[i, 0:colLen - 1] = feature[i, 0:colLen - 1]
+		for j in range(colLen, colLen * 2 - 2):
+			newfeature[i, j] = feature[i, j - colLen + 1] - feature[i, j - colLen]
+	return newfeature
 
 if __name__ == '__main__':
 	timeStart = time.time()
+	
+	# set parameters
 	bml = setInputParameters(bml)
+	
+	# build matrix
 	train, test = bml.buildMatrix()
-	# printMatrixInfo(train, test)
+	
+	
+	# denote input for ML algorithms
+	trainFeature = addFiniteDiff(train[0])*FeatureMatrixMultiplier			# feature matrix
+	# trainFeature = train[0]
+	trainTarget = (train[1][:, 0]).astype(int)	# label
+	trainReal = train[2]			# real feature metrix in prediction window
+	trainIdx = train[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	trainBaselineTarget = (train[4][:, 0]).astype(int)	# label for baseline model
+	
+	testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
+	# testFeature = test[0]
+	testTarget = (test[1][:, 0]).astype(int)		# label
+	testReal = test[2]				# real feature metrix in prediction window
+	testIdx = test[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	testBaselineTarget = (test[4][:, 0]).astype(int)		# label for baseline model	
+	
+	printMatrixInfo(train, test)
 
-	trainFeature = train[0]	# feature matrix
-	trainTargetAcc = train[1][:,0]	# accumulated label
-	trainTargetSld = train[2][:,0]	# sliding window label
-	trainReal = train[3]
-	testFeature = test[0]	# feature matrix
-	testTargetAcc = test[1][:,0]	# accumulated label
-	testTargetSld = test[2][:,0]	# sliding window label
-	testReal = test[3]
-	# useLogSGD('Acc', 'log', 'l2', 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	prediction = useLogSGD('Sld', 'log', 'l2', 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	# useSVM('Acc','poly', 2, 0.1, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	# useSVM('Sld','poly', 4, 0.1, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	# usekernelkNN('Acc', 'inv', 25, 0.55, trainFeature, trainTargetAcc, testFeature, testTargetAcc)
-	# prediction = usekernelkNN('Sld', 'inv', 25, 0.55, trainFeature, trainTargetSld, testFeature, testTargetSld)
-	# confidence = modelLog.decision_function(testFeature)
-	num = 0
-	for i in range(0, len(prediction)):
-		if prediction[i] == 1 and testTargetSld[i] == 1:
-			plotResult(str(i),testFeature[i],testReal[i])
-			num = num +1
-			if num > 10:
-				break
+	# run prediction models
+	getAccuracy('baseline',testBaselineTarget,testTarget)
+	# prediction = useLogSGD('', 'log', 'l2', 0.1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = useSVM('Fin10000','poly', 4, 0.1, trainFeature, trainTarget, testFeature, testTarget)
+	prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
+	# num = 0
+	# for i in range(0, len(prediction)):
+	# 	if prediction[i] == 1 and testTarget[i] == 1:
+	# 		# plotResultOnFeature(str(i),testFeature[i],testReal[i])
+	# 		plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
+	# 		num = num +1
+	# 		if num > 20:
+	# 			break
+	
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 

@@ -117,7 +117,89 @@ def plotAppWithRow (row_date_list,
 
     return name_dict
 
+def lookUpName (row_idx_list, 
+                market = None, 
+                category = None, 
+                metric = 1, 
+                db_user = None, 
+                db_pswd = None):
+    """
+    Function: plotAppWithRow
+        Find the names of given apps, represented by their row indices
 
+    Input:
+        row_idx_list: A list. Each element of the list is a int which is the row index of an app in a certain category
+        market: the market (1 or 3). If not provided user will have to input it interactively.
+        category: the category of the provided app. If not provided user will have to input it interactively.
+        metric: the metric to plot. default is 1 (free downloads). 
+        db_user: username of the database. If not provided user will have to input it interactively.
+        db_pswd: password of the database. If not provided user will have to input it interactively. 
+
+    Output:
+        The function will return a dict: idx -> name_tuple. Each name tuple has two elements: the first is it's name in unicode, 
+        the second is it's name in ascii string. When unicode name cannot be represented as a regular string the second element will be an empty string. 
+
+    Example:
+        data = [1000, 2000, 3000]  #we would like to find names of app with idx 1000, 2000, and 3000
+        dict = lookUpName(data, 1,'Business', 1, 'sample_usr', 'sample_password') #return a name dict
+    """
+    if (db_user is None):
+        db_user = raw_input('username for db: ')
+    if (db_pswd is None):
+        db_pswd = raw_input('password for db: ')
+    config = {
+        'user': db_user,
+        'password': db_pswd,
+        'host': 'appannie.coqatsb9cruk.us-west-2.rds.amazonaws.com',
+        'port': '3306',
+        'database': 'appannie',
+    }
+    cn = sql.connect(**config)
+    cursor = cn.cursor()
+
+    #check the availability of the category and the market
+    if (market is None):
+        market = raw_input('please specify market: ')
+        market = int(market)
+    if (category is None):
+        category = raw_input('please specify category: ')
+    while (True):
+        query = ("SELECT DISTINCT category, market FROM Product_category_lookup WHERE category = %s AND market = %s")
+        cursor.execute(query, (category, market))
+        real_cat_mkt = cursor.fetchall()
+        if (len(real_cat_mkt) > 0):
+            break
+        else:
+            category = raw_input('The specified category does not exist. Please specify category again: ')
+
+    query = ("SELECT Products.name "
+             "FROM Product_category_lookup INNER JOIN Products "
+             "ON Product_category_lookup.id = Products.id "
+             "WHERE Product_category_lookup.idx = %s "
+             "AND Product_category_lookup.category = %s")
+    name_dict = {}
+    for idx in row_idx_list:
+        cursor.execute(query, (idx, category))
+        name = cursor.fetchall()
+        if (len(name) == 0):
+            print 'Warning: index ' + idx.__str__() + ' cannot be found in the database!'
+        else:
+            try:
+                name_dict[idx] = (name[0][0], name[0][0].encode('ascii'))
+            except:
+                print 'Warning: name of app at index ' + idx.__str__() + ' cannot be converted to ascii!'
+                name_dict[idx] = (name[0][0], '')
+
+    #clean up
+    cursor.close()
+    cn.close()
+
+    return name_dict
+
+
+
+
+    
 
 
 

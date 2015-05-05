@@ -5,6 +5,7 @@ import sys
 import time
 import buildMLInput as bml
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 from plotApp import *
 from sklearn.linear_model import *
@@ -27,8 +28,9 @@ from sklearn.externals import joblib
 
 # default parameter values:
 ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Productivity'
+CategoryName = 'Social Networking'
 FeatureMatrixMultiplier = 10000
+LabelPercent = 0.6
 
 def setInputParameters(bml):
 	"""
@@ -61,7 +63,7 @@ def setInputParameters(bml):
 	bml.garbageThreshold = bml.featureTimeWindow * bml.WEEK # a download a day, keep doctors away.
 	bml.testPortion = 0.2
 	bml.top = 60
-	bml.percent = 0.8
+	bml.percent = LabelPercent
 	return bml
 
 def printMatrixInfo(train, test):
@@ -268,9 +270,9 @@ def plotResultOnFeature(name, feature, real):
 	plt.title('Download performance of an App in one category')
 	legend = plt.legend(loc='upper right', shadow=True, fontsize='x-large')
 	plt.xlabel('Week number')
-	plt.ylabel('Number of sigma')
+	plt.ylabel('Feature')
 	plt.grid(color='k', linestyle='-.', linewidth=1)
-	plt.axis([1,14, -3, 20])
+	# plt.axis([1,14, -3, 20])
 	ax = plt.gca()
 	ax.set_autoscale_on(False)
 	# plt.show(block=True)
@@ -305,9 +307,9 @@ def plotResultOnDownload(name,
 	Output:
 		plot
 	'''
-	print name
-	plotAppWithRow(idx, market, category, metric, db_user, db_pswd, matrix_path, output_path)
-	return 0
+	name = plotAppWithRow(idx, market, category, metric, db_user, db_pswd, matrix_path, output_path)
+	# print name
+	return name
 
 def compareWithBaseline(modelName, prediction, baseline):
 	getAccuracy(modelName, prediction, baseline)
@@ -344,26 +346,32 @@ if __name__ == '__main__':
 	testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
 	# testFeature = test[0]
 	testTarget = (test[1][:, 0]).astype(int)		# label
-	testReal = test[2]				# real feature metrix in prediction window
+	testReal = addFiniteDiff(test[2])*FeatureMatrixMultiplier				# real feature metrix in prediction window
 	testIdx = test[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	testBaselineTarget = (test[4][:, 0]).astype(int)		# label for baseline model	
 	
-	printMatrixInfo(train, test)
+	# printMatrixInfo(train, test)
 
 	# run prediction models
 	getAccuracy('baseline',testBaselineTarget,testTarget)
 	# prediction = useLogSGD('', 'log', 'l2', 0.1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = useSVM('Fin10000','poly', 4, 0.1, trainFeature, trainTarget, testFeature, testTarget)
 	prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	# num = 0
-	# for i in range(0, len(prediction)):
-	# 	if prediction[i] == 1 and testTarget[i] == 1:
-	# 		# plotResultOnFeature(str(i),testFeature[i],testReal[i])
-	# 		plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
-	# 		num = num +1
-	# 		if num > 20:
-	# 			break
-	
+	num = 0
+	sampleIdx = range(0, len(prediction))
+	random.shuffle(sampleIdx)
+	# for i in sampleIdx:
+	# 	if prediction[i] == 0 and testTarget[i] == 0:
+	# 		plotResultOnFeature(str(i),testFeature[i],testReal[i])
+	# 		num =  num +1
+	# 		# try:
+	# 		# 	names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
+	# 		# 	appName = names[testIdx[i][0]]
+	# 		# 	print appName
+	# 		# 	num =  num +1 
+	# 		# except: pass
+	# 	if num > 10:
+	# 		break
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 

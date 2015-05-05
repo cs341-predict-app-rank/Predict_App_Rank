@@ -4,6 +4,7 @@ import scipy.sparse as sps
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from plotApp import lookUpName
 
 ############################################################################
 # Hyper parameters:                                                        #
@@ -128,6 +129,7 @@ def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
     """
     if percentOfDownloads is None: percentOfDownloads = percent
     label = np.zeros(dataMatrix.shape)
+    threshold = np.zeros(dataMatrix.shape[1])
     tempData = dataMatrix.copy()
     argOrder = (-tempData).argsort(0)
     sortedData = -np.sort(-tempData, axis=0)
@@ -137,7 +139,8 @@ def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
     for i in xrange(dataMatrix.shape[1]):
         indexThisCol = argOrder[trueIndex[:,i].ravel(),i]
         label[indexThisCol, i] = True
-    return label
+        threshold[i] = dataMatrix[indexThisCol, i].min()
+    return label, threshold
 
 def standardize(featureMatrix):
     """
@@ -255,15 +258,16 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
     featureTotal = totalDataMatrix[:,featureStartTime:featureEndTime]
     predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
     featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
-    eachWindowLabel = topkMethod(predictMatrix)
-    print eachWindowLabel.sum(0)
+    if topkMethod != generateTopkPercentLabelByCol: eachWindowLabel = topkMethod(predictMatrix)
+    else: eachWindowLabel, _ = topkMethod(predictMatrix)
     consistentLabel = eachWindowLabel.sum(1) >= (predictSize - EPSILON)
     firstFailLabel = eachWindowLabel[:,:failTime].sum(1) < EPSILON
     lastSuccessLabel = eachWindowLabel[:,-successTime:].sum(1) > (successTime - EPSILON)
     incrementalLabel = np.logical_and(firstFailLabel, lastSuccessLabel)
     accumulateLabel = np.logical_or(incrementalLabel, consistentLabel)
-    predictTimeCol = 7 * predictTimeStamp * np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
-    baselineLabel = topkMethod(featureMatrix).sum(1) >= (featureSize - EPSILON)
+    predictTimeCol = WEEK * predictTimeStamp * np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
+    if topkMethod != generateTopkPercentLabelByCol: baselineLabel = topkMethod(featureMatrix).sum(1) >= (featureSize - EPSILON)
+    else: baselineLabel = topkMethod(featureMatrix)[0].sum(1) >= (featureSize - EPSILON)
     if standardizeMethod is not None:
         return (standardizeMethod(featureMatrix),
                 accumulateLabel[:,None],
@@ -392,10 +396,31 @@ def randomPlot(filename=None):
     plt.show()
     return
 
-def randomRowFromSuccess(successDataMatrix, indexMatrix, drawNum=1):
-    print successDataMatrix.shape[0]
-    rowNum = np.random.randint(successDataMatrix.shape[0], size=drawNum)
+def randomRowFromSuccess(dataMatrix, label, indexMatrix, drawNum=1):
+    rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
+    while (not label[rowNum]): rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
     return indexMatrix[rowNum].tolist()
+
+def randomRowFromFail(dataMatrix, label, indexMatrix, drawNum=1):
+    rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
+    while (label[rowNum]): rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
+    return indexMatrix[rowNum].tolist()
+
+def randomPlot(indexList, totalData, compressedData, threshold):
+    for successIndex in indexList:
+        print lookUpName([successIndex[0]], 1, 'Social Networking', 1, 'safe')
+        print successIndex
+        transformed = compressedData[successIndex[0]].toarray().ravel() / slidingWindowSize / WEEK
+        predictionTime = successIndex[1]
+        raw = totalData[successIndex[0]].toarray().ravel()
+        plt.plot(np.array(range(transformed.shape[0])) * WEEK + slidingWindowSize * WEEK / 2, transformed, label='smoothened data')
+        plt.plot(raw, label='raw data')
+        plt.plot(np.array(range(transformed.shape[0])) * WEEK + slidingWindowSize * WEEK / 2, threshold / slidingWindowSize / WEEK, '--', label='threshold')
+        plt.axvline(x=predictionTime, linestyle='--')
+        plt.axvline(x=predictionTime + WEEK * (predictTimeWindow - slidingWindowSize), linestyle='--')
+        plt.xlim((predictionTime - 3 * WEEK, predictionTime + WEEK * (predictTimeWindow - slidingWindowSize) + 3 * WEEK))
+        #plt.yscale('log')
+    #plt.show()
 
 def successNameList(filename=None):
     from plotApp import plotAppWithRow
@@ -412,14 +437,20 @@ def plotTopkPercentTimeSeries(filename=None, percentOfDownloads=None):
     categoryName = filename.split('/')[2]
     dataMatrix = compressMatrix(rawDataMatrix(filename))
     dataMatrix, _, index = swipeOutInactiveApp(dataMatrix, leastDownload=0)
-    topkLabel = generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads)
-    plt.title('Number of Apps hold 60% downloads in {0}'.format(categoryName))
-    plt.xlabel('time')
-    plt.ylabel('#App')
+    topkLabel, _ = generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads)
+    #plt.title('Number of Apps hold 60% downloads in {0}'.format(categoryName))
+    #plt.xlabel('time')
+    #plt.ylabel('#App')
     plt.plot(topkLabel.sum(0))
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
     train, test = buildMatrix(normalizeFlag=False)
+    raw = rawDataMatrix(inputFile)
+    compressed = compressMatrix(raw)
+    _, threshold = generateTopkPercentLabelByCol(compressed.toarray())
+    #randomPlot([[997, 300]], raw, compressed, threshold)
+    #randomPlot([[7, 707]], raw, compressed, threshold)
+    #randomPlot([[2550, 147]], raw, compressed, threshold)
     pass

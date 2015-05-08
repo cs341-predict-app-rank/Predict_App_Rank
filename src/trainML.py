@@ -365,21 +365,15 @@ def plotResultOnDownload(name,
 	# print name
 	return name
 
-def compareWithBaseline(modelName, prediction, baseline):
-	getAccuracy(modelName, prediction, baseline)
-	return 0
-
-def addFiniteDiffFeatures(feature):
-	rowLen = feature.shape[0]
-	colLen = feature.shape[1]
-	newfeature = np.zeros((rowLen, colLen * 2 - 1))
-	for i in range(0, rowLen):
-		newfeature[i, 0:colLen] = feature[i, 0:colLen]
-		for j in range(colLen, colLen * 2 - 1):
-			newfeature[i, j] = feature[i, j - colLen + 1] - feature[i, j - colLen]
-	return newfeature
-
 def addLinearFitFeatures(feature, orgFeatureNum = 9):
+	'''
+	Function: add linear fitting charactors and corresponding prediction points as new features
+	Input:
+		feature: orginal feature matrix
+		orgFeatureNum: original download feature numbers  
+	Output:
+		newfeature: new feature matrix
+	'''
 	rowLen = feature.shape[0]
 	colLen = feature.shape[1]
 	newfeature = np.zeros((rowLen, colLen + 8))
@@ -406,6 +400,16 @@ def addLinearFitFeatures(feature, orgFeatureNum = 9):
 	return newfeature
 
 def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive date rate
+	'''
+	Function: balance training samples
+	Input:
+		train: original samples
+		posRate: the rate of positive sample among all samples
+		noiseRate: the amplitude of noise added to new smaples
+		growRate: the rate of new total sample number over original sample number
+	Output:
+		newTrain: new train data with balanced samples
+	'''
 	orgNum = len(train[0])
 	posNum = sum(train[1][:, 0])
 	negNum = orgNum - posNum
@@ -447,58 +451,11 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 	# print len(newTrain[0]), sum(newTrain[1][:, 0])
 	return newTrain
 
-
-if __name__ == '__main__':
-	timeStart = time.time()
-	
-	# set parameters
-	bml = setInputParameters(bml)
-	
-	# build matrix
-	train, test = bml.buildMatrix()
-
-	# prate = list()
-	# f1 = list()
-	# prec = list()
-	# reca = list()
-
-	train[0] = train[0]*FeatureMatrixMultiplier
-	test[0] = test[0]*FeatureMatrixMultiplier
-
-	# balance samples
-	# pRate = 0.5
-	# newtrain = balanceData(train, posRate=0.0096)
-	newtrain = train
-
-	# denote input for ML algorithms
-	# finiteFeature = addFiniteDiff(newtrain[0])*FeatureMatrixMultiplier			# feature matrix
-	trainFeature = addLinearFitFeatures(newtrain[0])
-	trainFeature = trainFeature[:,:]
-
-	# trainFeature = train[0]
-	trainTarget = (newtrain[1][:, 0]).astype(int)	# label
-	trainReal = addFiniteDiffFeatures(newtrain[2])*FeatureMatrixMultiplier		# real feature metrix in prediction window
-	trainIdx = newtrain[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
-	trainBaselineTarget = (newtrain[4][:, 0]).astype(int)	# label for baseline model
-
-	# testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
-	testFeature = addLinearFitFeatures(test[0])
-	testFeature = testFeature[:,:]
-	# testFeature = test[0]
-	testTarget = (test[1][:, 0]).astype(int)		# label
-	testReal = addFiniteDiffFeatures(test[2])*FeatureMatrixMultiplier				# real feature metrix in prediction window
-	testIdx = test[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
-	testBaselineTarget = (test[4][:, 0]).astype(int)		# label for baseline model	
-
-	printMatrixInfo(train, test)
-
-	# run prediction models
-	getAccuracy('baseline',testBaselineTarget,testTarget)
-	# prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
-	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
+def plotMultipleResults(prediction, 
+						testTarget, 
+						testBaselineTarget,
+						testIdx,
+						CategoryName):
 	num = 0
 	sampleIdx = range(0, len(prediction))
 	rd.shuffle(sampleIdx)
@@ -513,16 +470,50 @@ if __name__ == '__main__':
 			except: pass
 		if num > 50:
 			break
+	return 0
 
+if __name__ == '__main__':
+	timeStart = time.time()
+	
+	# set parameters
+	bml = setInputParameters(bml)
+	
+	# build matrix
+	train, test = bml.buildMatrix()
+	train[0] = train[0]*FeatureMatrixMultiplier
+	train[2] = train[2]*FeatureMatrixMultiplier
+	test[0] = test[0]*FeatureMatrixMultiplier
+	test[2] = test[2]*FeatureMatrixMultiplier
+	# balance samples
+	# newtrain = balanceData(train, posRate=0.0096)
+	newtrain = train
+	# create input for ML algorithms
+	trainFeature = addLinearFitFeatures(newtrain[0])
+	trainFeature = trainFeature[:,:]
+	trainTarget = (newtrain[1][:, 0]).astype(int)		# label
+	trainReal = newtrain[2]								# real feature metrix in prediction window
+	trainIdx = newtrain[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
+	testFeature = addLinearFitFeatures(test[0])
+	testFeature = testFeature[:,:]
+	testTarget = (test[1][:, 0]).astype(int)			# label
+	testReal = test[2]									# real feature metrix in prediction window
+	testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
+	
+	# print data details
+	printMatrixInfo(train, test)
 
-	# F1, Precision, Recall = getAccuracy(str(pRate), prediction, testTarget)
-	# prate.append(pRate)
-	# f1.append(F1)
-	# prec.append(Precision)
-	# reca.append(Recall)
-	# plt.plot(prate, f1, 'b', prate, prec, 'r', prate, reca, 'g')
-	# legend = plt.legend(loc='upper right', shadow=True, fontsize='x-large')
-	# plt.show()
+	# run prediction models
+	getAccuracy('baseline',testBaselineTarget,testTarget)
+	# prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
+	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
+	
+	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName)
+
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 

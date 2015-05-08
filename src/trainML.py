@@ -29,14 +29,7 @@ from sklearn.ensemble import AdaBoostClassifier
 # 																		   #
 ############################################################################
 
-# default parameter values:
-ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Social Networking'
-FeatureMatrixMultiplier = 10000
-LabelPercent = 0.6
-rd.seed(time.time())
-
-def setInputParameters(bml):
+def setParameters(bml, CategoryName, LabelPercent):
 	"""
 	Function: 
 		update parameters for ML train and test matrix building
@@ -451,33 +444,7 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 	# print len(newTrain[0]), sum(newTrain[1][:, 0])
 	return newTrain
 
-def plotMultipleResults(prediction, 
-						testTarget, 
-						testBaselineTarget,
-						testIdx,
-						CategoryName):
-	num = 0
-	sampleIdx = range(0, len(prediction))
-	rd.shuffle(sampleIdx)
-	for i in sampleIdx:
-		if prediction[i] == 0 and testTarget[i] == 0 and testBaselineTarget[i] == 1:
-			# plotResultOnFeature(str(i),testFeature[i],testReal[i])
-			try:
-				names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
-				appName = names[testIdx[i][0]]
-				print appName
-				num =  num +1 
-			except: pass
-		if num > 50:
-			break
-	return 0
-
-if __name__ == '__main__':
-	timeStart = time.time()
-	
-	# set parameters
-	bml = setInputParameters(bml)
-	
+def getInputForML(bml, FeatureMatrixMultiplier):
 	# build matrix
 	train, test = bml.buildMatrix()
 	train[0] = train[0]*FeatureMatrixMultiplier
@@ -500,7 +467,62 @@ if __name__ == '__main__':
 	testReal = test[2]									# real feature metrix in prediction window
 	testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
+	print 'Finished labelling'
+	return train, test, trainFeature, trainTarget, trainReal, trainIdx, trainBaselineTarget,\
+			testFeature, testTarget, testReal, testIdx, testBaselineTarget
+
+def plotMultipleResults(prediction, 
+						testTarget, 
+						testBaselineTarget,
+						testIdx,
+						CategoryName,
+						limit):
+	'''
+	Function: plot multiple downloads figures to files
+	Input:
+		prediction: array, prediction results, 0 or 1
+		testTarget: array, targets, 0 or 1
+		testBaselineTarget: array, prediction made by baseline method, 0 or 1
+		testIdx: list, contains all index relationship between those arrays and original data matrix
+		CategoryName: str, current category name
+	Output:
+		pdf files in /plot/1/CategoryName/
+	Note: 
+		user need to change this line to control the output contents:
+		if prediction[i] == 0 and testTarget[i] == 0 and testBaselineTarget[i] == 1:
+	'''
+	num = 0
+	sampleIdx = range(0, len(prediction))
+	rd.shuffle(sampleIdx)
+	for i in sampleIdx:
+		if prediction[i] == 0 and testTarget[i] == 0 and testBaselineTarget[i] == 1:
+			# plotResultOnFeature(str(i),testFeature[i],testReal[i])
+			try:
+				names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
+				appName = names[testIdx[i][0]]
+				print appName
+				num =  num +1 
+			except: pass
+		if num > limit:
+			break
+	return 0
+
+if __name__ == '__main__':
+	timeStart = time.time()
+	rd.seed(time.time())
 	
+	# set labelling parameters
+	ModelFileDir = 'models/' # save existing model in this dir
+	CategoryName = 'Social Networking'
+	LabelPercent = 0.6
+	FeatureMatrixMultiplier = 10000
+	bml = setParameters(bml, CategoryName, LabelPercent)
+	
+	# get input data for ML algorithms
+	train, test, trainFeature, trainTarget, trainReal, trainIdx, trainBaselineTarget,\
+	testFeature, testTarget, testReal, testIdx, testBaselineTarget\
+	= getInputForML(bml, FeatureMatrixMultiplier)
+
 	# print data details
 	printMatrixInfo(train, test)
 
@@ -509,10 +531,10 @@ if __name__ == '__main__':
 	# prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
 	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
 	
-	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName)
+	plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
 
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime

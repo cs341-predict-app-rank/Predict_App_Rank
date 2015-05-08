@@ -60,7 +60,7 @@ def setInputParameters(bml):
 	bml.EPSILON = 0.000001
 	bml.inputFile = './1/'+ CategoryName +'/datamatrix_metric_1.npz'
 	bml.predictTimeWindow = 24
-	bml.featureTimeWindow = 12
+	bml.featureTimeWindow = 9
 	bml.slidingWindowSize = 4
 	bml.outOfSigmaSuccess = 1
 	bml.successThreshold = 5
@@ -473,48 +473,48 @@ if __name__ == '__main__':
 	# denote input for ML algorithms
 	# finiteFeature = addFiniteDiff(newtrain[0])*FeatureMatrixMultiplier			# feature matrix
 	trainFeature = addLinearFitFeatures(newtrain[0])
-	trainFeature = trainFeature[:,9:]
+	trainFeature = trainFeature[:,:]
 
 	# trainFeature = train[0]
 	trainTarget = (newtrain[1][:, 0]).astype(int)	# label
-	trainReal = newtrain[2]			# real feature metrix in prediction window
+	trainReal = addFiniteDiffFeatures(newtrain[2])*FeatureMatrixMultiplier		# real feature metrix in prediction window
 	trainIdx = newtrain[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	trainBaselineTarget = (newtrain[4][:, 0]).astype(int)	# label for baseline model
 
 	# testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
 	testFeature = addLinearFitFeatures(test[0])
-	testFeature = testFeature[:,9:]
+	testFeature = testFeature[:,:]
 	# testFeature = test[0]
 	testTarget = (test[1][:, 0]).astype(int)		# label
-	testReal = addFiniteDiff(test[2])*FeatureMatrixMultiplier				# real feature metrix in prediction window
+	testReal = addFiniteDiffFeatures(test[2])*FeatureMatrixMultiplier				# real feature metrix in prediction window
 	testIdx = test[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	testBaselineTarget = (test[4][:, 0]).astype(int)		# label for baseline model	
 
-	# printMatrixInfo(train, test)
+	printMatrixInfo(train, test)
 
 	# run prediction models
 	getAccuracy('baseline',testBaselineTarget,testTarget)
-	# prediction = useLogSGD(str(pRate), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
 	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
 	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
-	
-	# num = 0
-	# sampleIdx = range(0, len(prediction))
-	# random.shuffle(sampleIdx)
-	# for i in sampleIdx:
-	# 	if prediction[i] == 0 and testTarget[i] == 0:
-	# 		plotResultOnFeature(str(i),testFeature[i],testReal[i])
-	# 		num =  num +1
-	# 		# try:
-	# 		# 	names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
-	# 		# 	appName = names[testIdx[i][0]]
-	# 		# 	print appName
-	# 		# 	num =  num +1 
-	# 		# except: pass
-	# 	if num > 10:
-	# 		break
+	num = 0
+	sampleIdx = range(0, len(prediction))
+	rd.shuffle(sampleIdx)
+	for i in sampleIdx:
+		if prediction[i] == 0 and testTarget[i] == 0 and testBaselineTarget[i] == 1:
+			# plotResultOnFeature(str(i),testFeature[i],testReal[i])
+			try:
+				names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
+				appName = names[testIdx[i][0]]
+				print appName
+				num =  num +1 
+			except: pass
+		if num > 50:
+			break
+
+
 	# F1, Precision, Recall = getAccuracy(str(pRate), prediction, testTarget)
 	# prate.append(pRate)
 	# f1.append(F1)

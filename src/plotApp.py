@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import mysql.connector as sql
 import os
 import sparseIO
+from buildMLInput import *
 
 def plotAppWithRow (row_date_list, 
                     market = None, 
@@ -77,7 +78,9 @@ def plotAppWithRow (row_date_list,
     #read the data matrix of this category
     data_matrix = sparseIO.csrLoad(matrix_path + market.__str__() + '/' + category + '/' + 
                                    'datamatrix_metric_' + metric.__str__() + '.npz')
-
+    data_matrix = data_matrix[:,:-6]
+    _, threshold, _ = generateTopkPercentLabelByCol(data_matrix.toarray())
+    threshold = threshold.reshape((threshold.size,1))
     #plot and save results:
     query = ("SELECT Products.name "
              "FROM Product_category_lookup INNER JOIN Products "
@@ -97,13 +100,15 @@ def plotAppWithRow (row_date_list,
             except:
                 print 'Warning: name of app at index ' + item[0].__str__() + ' cannot be converted to ascii!'
                 continue
-            plot_begin_date = max([item[1] - 100, 0])
-            plot_end_date = min([item[1] + 100, num_of_dates - 1])
+            plot_begin_date = max([item[1] - 300, 0])
+            plot_end_date = min([item[1] + 300, num_of_dates - 1])
 
             name_dict[item[0]] = name
             plt.plot(range(plot_begin_date, plot_end_date), data_matrix[item[0], plot_begin_date:plot_end_date].todense().T, label = 'data')
+            plt.plot(range(plot_begin_date, plot_end_date), threshold[plot_begin_date:plot_end_date], label = 'threshold')
+
             plt.axvline(x = item[1], linestyle = '--', color = 'g')
-            plt.axvline(x = max([item[1] - 12*7, 0]), linestyle = '--', color = 'r')
+            plt.axvline(x = max([item[1] - 36*7, 0]), linestyle = '--', color = 'r')
             plt.axvline(x = min([item[1] + 12*7, num_of_dates - 1]), linestyle = '--', color = 'r')
 
             plt.title(name)
@@ -196,7 +201,8 @@ def lookUpName (row_idx_list,
 
     return name_dict
 
-
+if __name__ == '__main__':
+    plotAppWithRow([(1900, 100), (100, 500)],1)
 
 
     

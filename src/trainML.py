@@ -5,13 +5,16 @@ import sys
 import time
 import buildMLInput as bml
 import numpy as np
-import random
+import random as rd
 import matplotlib.pyplot as plt
 from plotApp import *
+from pylab import * 
 from sklearn.linear_model import *
 from sklearn.svm import *
 from sklearn.neighbors import *
 from sklearn.externals import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
 ############################################################################
 #	Function:															   #
@@ -31,6 +34,7 @@ ModelFileDir = 'models/' # save existing model in this dir
 CategoryName = 'Social Networking'
 FeatureMatrixMultiplier = 10000
 LabelPercent = 0.6
+rd.seed(time.time())
 
 def setInputParameters(bml):
 	"""
@@ -55,7 +59,7 @@ def setInputParameters(bml):
 	bml.WEEK = 7 # don't change this, you know why :-)
 	bml.EPSILON = 0.000001
 	bml.inputFile = './1/'+ CategoryName +'/datamatrix_metric_1.npz'
-	bml.predictTimeWindow = 12
+	bml.predictTimeWindow = 24
 	bml.featureTimeWindow = 12
 	bml.slidingWindowSize = 4
 	bml.outOfSigmaSuccess = 1
@@ -180,6 +184,52 @@ def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 	getAccuracy('kNN.'+label, prediction, Y2)
 	return prediction
 
+def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25):
+	"""
+	Function: use RandomForest to predict
+	Input:
+		label: just a name to recognize input data from output
+		n_estimators: int, number of trees 
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
+		return prediction for test
+	"""
+	label = label + '.RandomForest.' + str(n_estimators)
+	modelFileName = ModelFileDir + label + '.pkl'
+	model = RandomForestClassifier(n_estimators=n_estimators)
+	print '\nStart training RandomForest ...'
+	model.fit(X1,Y1)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
+	getAccuracy('RandomForest.Train.'+label, prediction1, Y1)
+	getAccuracy('RandomForest.Test.'+label, prediction2, Y2)
+	return prediction2
+
+def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
+	"""
+	Function: use AdaBoost to predict
+	Input:
+		label: just a name to recognize input data from output
+		n_estimators: int, The maximum number of estimators at which boosting is terminated
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
+		return prediction for test
+	"""
+	label = label + '.AdaBoost.' + str(n_estimators)
+	modelFileName = ModelFileDir + label + '.pkl'
+	model = AdaBoostClassifier(n_estimators=n_estimators)
+	print '\nStart training AdaBoost ...'
+	model.fit(X1,Y1)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
+	getAccuracy('AdaBoost.Train.'+label, prediction1, Y1)
+	getAccuracy('AdaBoost.Test.'+label, prediction2, Y2)
+	return prediction2
+
 def kernelkNN(kernel, threshold, dist, idx, Y1):
 	'''
 	Function: implement differnt kernel method to compute prediction from distances
@@ -238,15 +288,19 @@ def getAccuracy(modelName, prediction, target):
 				FN = FN + 1
 	ACC = (TP/float(TP+FP+0.01) + TN/float(TN+FN+0.01))/2
 	print '\n<'+modelName+'>'
-	print 'True pos:', TP, ' False neg:', FN,'\t Precision:', (TP+0.01)/float(TP+FN+0.01)*100,'%'
-	print 'False pos:', FP,' True neg:', TN,'\t Precision:', (TN+0.01)/float(FP+TN+0.01)*100,'%'
-	print 'Precision:', TP/float(TP+FP+0.01), '\t', TN/float(FN+TN+0.01)
-	print 'TP/P:', TP/float(TP+FP+0.01), 'TN/N:', TN/float(TN+FN+0.01)
-	print 'Overall accuracy:', ACC,'%'
+	print 'True pos:', TP, ' False neg:', FN #,'\t Precision:', (TP+0.01)/float(TP+FN+0.01)*100,'%'
+	print 'False pos:', FP,' True neg:', TN #,'\t Precision:', (TN+0.01)/float(FP+TN+0.01)*100,'%'
+	# print 'Precision:', TP/float(TP+FP+0.01), '\t', TN/float(FN+TN+0.01)
+	# print 'TP/P:', TP/float(TP+FP+0.01), 'TN/N:', TN/float(TN+FN+0.01)
+	# print 'Overall accuracy:', ACC,'%'
+	Precision = TP/float(TP+FP+0.01)
+	Recall = TP/float(TP+FN+0.01)
+	F1 = 2*(Precision*Recall)/(Precision+Recall+0.0001)
+	print 'F1:', F1
 	# for i in range(0,10):
 	# 	print prediction[i], target[i], confidence[i]
 	# return 0
-	return TP, FN, FP, TN
+	return F1, Precision, Recall
 
 def plotResultOnFeature(name, feature, real):
 	'''
@@ -315,15 +369,84 @@ def compareWithBaseline(modelName, prediction, baseline):
 	getAccuracy(modelName, prediction, baseline)
 	return 0
 
-def addFiniteDiff(feature):
+def addFiniteDiffFeatures(feature):
 	rowLen = feature.shape[0]
 	colLen = feature.shape[1]
 	newfeature = np.zeros((rowLen, colLen * 2 - 1))
-	for i in range(0, rowLen - 1):
-		newfeature[i, 0:colLen - 1] = feature[i, 0:colLen - 1]
-		for j in range(colLen, colLen * 2 - 2):
+	for i in range(0, rowLen):
+		newfeature[i, 0:colLen] = feature[i, 0:colLen]
+		for j in range(colLen, colLen * 2 - 1):
 			newfeature[i, j] = feature[i, j - colLen + 1] - feature[i, j - colLen]
 	return newfeature
+
+def addLinearFitFeatures(feature, orgFeatureNum = 9):
+	rowLen = feature.shape[0]
+	colLen = feature.shape[1]
+	newfeature = np.zeros((rowLen, colLen + 8))
+	for i in range(0, rowLen):
+		newfeature[i, 0:colLen] = feature[i, 0:colLen]
+		
+		# calculate linear fit on all features
+		x = range(0, orgFeatureNum)
+		y = feature[i, 0:orgFeatureNum].tolist()
+		fit = polyfit(x, y, 1)
+		newfeature[i, colLen] = fit[0]
+		newfeature[i, colLen + 1] = fit[1]
+
+		# calculate linear fit on last 1/3 features
+		x = range(int(orgFeatureNum*2/3), orgFeatureNum)
+		y = feature[i, int(orgFeatureNum*2/3):orgFeatureNum].tolist()
+		fit = polyfit(x, y, 1)
+		fit_fn = poly1d(fit)
+		newfeature[i, colLen + 2] = fit[0]
+		newfeature[i, colLen + 3] = fit[1]
+		x = [orgFeatureNum, orgFeatureNum+1, orgFeatureNum+2, orgFeatureNum+3]
+		y = fit_fn(x)
+		newfeature[i, colLen + 4:colLen + 8] = y
+	return newfeature
+
+def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive date rate
+	orgNum = len(train[0])
+	posNum = sum(train[1][:, 0])
+	negNum = orgNum - posNum
+	
+	totalNum = int(posNum / posRate * growRate)
+	newPosNum = int(totalNum * posRate)
+	newNegNum = totalNum - newPosNum
+
+	# initialize new train list
+	newTrain = list()	
+	for matrixIdx in range(len(train)):
+		newTrain.append(np.zeros((totalNum, len(train[matrixIdx][0, :]))))	# init new matrix
+	# create random smapling index
+	sampleIdx = range(orgNum)
+	rd.shuffle(sampleIdx)
+	newIdx = 0
+	posIdx = 0
+	negIdx = 0
+	idx = 0
+	while newIdx < totalNum:	
+		if idx >= orgNum:
+			idx = 0
+		if (train[1][sampleIdx[idx]]).astype(int) == 1 and posIdx < newPosNum:	# if it's a positive sample
+			for column in range(len(train[0][0,:])):	# copy feature and add noise to the new sample 
+				newTrain[0][newIdx, column] = train[0][sampleIdx[idx], column] * (1+rd.uniform(-1,1)*noiseRate)
+			for matrixIdx in range(1,len(train)):		# copy other data as the same to the new sample
+				newTrain[matrixIdx][newIdx, :] = train[matrixIdx][sampleIdx[idx], :]
+			# print 'p', posIdx, newIdx, newTrain[0][newIdx]
+			newIdx = newIdx + 1
+			posIdx = posIdx + 1
+		if (train[1][sampleIdx[idx]]).astype(int) == 0 and negIdx < newNegNum:	# if it's a negtive sample
+			for matrixIdx in range(0,len(train)):		# copy all data as the same to the new sample
+				newTrain[matrixIdx][newIdx, :] = train[matrixIdx][sampleIdx[idx], :]
+			# print 'n', negIdx, newIdx, newTrain[0][newIdx]
+			newIdx = newIdx + 1
+			negIdx = negIdx + 1
+		idx = idx + 1
+	# print orgNum, posNum
+	# print len(newTrain[0]), sum(newTrain[1][:, 0])
+	return newTrain
+
 
 if __name__ == '__main__':
 	timeStart = time.time()
@@ -333,33 +456,53 @@ if __name__ == '__main__':
 	
 	# build matrix
 	train, test = bml.buildMatrix()
-	
-	
+
+	# prate = list()
+	# f1 = list()
+	# prec = list()
+	# reca = list()
+
+	train[0] = train[0]*FeatureMatrixMultiplier
+	test[0] = test[0]*FeatureMatrixMultiplier
+
+	# balance samples
+	# pRate = 0.5
+	# newtrain = balanceData(train, posRate=0.0096)
+	newtrain = train
+
 	# denote input for ML algorithms
-	trainFeature = addFiniteDiff(train[0])*FeatureMatrixMultiplier			# feature matrix
+	# finiteFeature = addFiniteDiff(newtrain[0])*FeatureMatrixMultiplier			# feature matrix
+	trainFeature = addLinearFitFeatures(newtrain[0])
+	trainFeature = trainFeature[:,9:]
+
 	# trainFeature = train[0]
-	trainTarget = (train[1][:, 0]).astype(int)	# label
-	trainReal = train[2]			# real feature metrix in prediction window
-	trainIdx = train[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
-	trainBaselineTarget = (train[4][:, 0]).astype(int)	# label for baseline model
-	
-	testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
+	trainTarget = (newtrain[1][:, 0]).astype(int)	# label
+	trainReal = newtrain[2]			# real feature metrix in prediction window
+	trainIdx = newtrain[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	trainBaselineTarget = (newtrain[4][:, 0]).astype(int)	# label for baseline model
+
+	# testFeature = addFiniteDiff(test[0])*FeatureMatrixMultiplier			# feature matrix
+	testFeature = addLinearFitFeatures(test[0])
+	testFeature = testFeature[:,9:]
 	# testFeature = test[0]
 	testTarget = (test[1][:, 0]).astype(int)		# label
 	testReal = addFiniteDiff(test[2])*FeatureMatrixMultiplier				# real feature metrix in prediction window
 	testIdx = test[3]				# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	testBaselineTarget = (test[4][:, 0]).astype(int)		# label for baseline model	
-	
+
 	# printMatrixInfo(train, test)
 
 	# run prediction models
 	getAccuracy('baseline',testBaselineTarget,testTarget)
-	# prediction = useLogSGD('', 'log', 'l2', 0.1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = useSVM('Fin10000','poly', 4, 0.1, trainFeature, trainTarget, testFeature, testTarget)
-	prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	num = 0
-	sampleIdx = range(0, len(prediction))
-	random.shuffle(sampleIdx)
+	# prediction = useLogSGD(str(pRate), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
+	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
+	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
+	
+	# num = 0
+	# sampleIdx = range(0, len(prediction))
+	# random.shuffle(sampleIdx)
 	# for i in sampleIdx:
 	# 	if prediction[i] == 0 and testTarget[i] == 0:
 	# 		plotResultOnFeature(str(i),testFeature[i],testReal[i])
@@ -372,6 +515,14 @@ if __name__ == '__main__':
 	# 		# except: pass
 	# 	if num > 10:
 	# 		break
+	# F1, Precision, Recall = getAccuracy(str(pRate), prediction, testTarget)
+	# prate.append(pRate)
+	# f1.append(F1)
+	# prec.append(Precision)
+	# reca.append(Recall)
+	# plt.plot(prate, f1, 'b', prate, prec, 'r', prate, reca, 'g')
+	# legend = plt.legend(loc='upper right', shadow=True, fontsize='x-large')
+	# plt.show()
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 

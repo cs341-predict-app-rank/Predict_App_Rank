@@ -4,7 +4,6 @@ import scipy.sparse as sps
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from plotApp import lookUpName
 
 ############################################################################
 # Hyper parameters:                                                        #
@@ -439,7 +438,7 @@ def plotTopkPercentTimeSeries(filename=None, percentOfDownloads=None):
     categoryName = filename.split('/')[2]
     dataMatrix = compressMatrix(rawDataMatrix(filename))
     dataMatrix, _, index = swipeOutInactiveApp(dataMatrix, leastDownload=0)
-    topkLabel, _ = generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads)
+    topkLabel, _, _ = generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads)
     #plt.title('Number of Apps hold 60% downloads in {0}'.format(categoryName))
     #plt.xlabel('time')
     #plt.ylabel('#App')
@@ -456,3 +455,4 @@ if __name__ == '__main__':
     #randomPlot([[7, 707]], raw, compressed, threshold)
     #randomPlot([[2550, 147]], raw, compressed, threshold)
     pass
+from plotApp import lookUpName

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.log
 *.pyc
 1/*
@@ -8,3 +9,7 @@ Productivity*
 Social Networking*
 .idea/*
 plot/*
+=======
+
+src/plotApp.py
+>>>>>>> origin/master

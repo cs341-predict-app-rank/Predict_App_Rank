@@ -140,7 +140,7 @@ def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
         indexThisCol = argOrder[trueIndex[:,i].ravel(),i]
         label[indexThisCol, i] = True
         threshold[i] = dataMatrix[indexThisCol, i].min()
-    return label, threshold
+    return label, threshold, np.tile(label.sum(0), (label.shape[0], 1))
 
 def standardize(featureMatrix):
     """
@@ -239,7 +239,7 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
     Input:
         totalDataMatrix: the complete data matrix.
         predictTimeStamp: time to start prediction.
-        #topkMethod: Method to generate label.
+        topkMethod: Method to generate label.
         standardizeMethod: method for standardization.
         windowSize: size of sliding window.
         featureSize: feature dimension.
@@ -259,7 +259,7 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
     predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
     featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
     if topkMethod != generateTopkPercentLabelByCol: eachWindowLabel = topkMethod(predictMatrix)
-    else: eachWindowLabel, _ = topkMethod(predictMatrix)
+    else: eachWindowLabel, _, _ = topkMethod(predictMatrix)
     consistentLabel = eachWindowLabel.sum(1) >= (predictSize - EPSILON)
     firstFailLabel = eachWindowLabel[:,:failTime].sum(1) < EPSILON
     lastSuccessLabel = eachWindowLabel[:,-successTime:].sum(1) > (successTime - EPSILON)
@@ -267,15 +267,17 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
     accumulateLabel = np.logical_or(incrementalLabel, consistentLabel)
     predictTimeCol = WEEK * predictTimeStamp * np.ones(remainingIndex.shape[0], dtype='int32')[:,None]
     if topkMethod != generateTopkPercentLabelByCol: baselineLabel = topkMethod(featureMatrix).sum(1) >= (featureSize - EPSILON)
-    else: baselineLabel = topkMethod(featureMatrix)[0].sum(1) >= (featureSize - EPSILON)
+    else:
+        baselineLabel, _, numberOfApp = topkMethod(featureMatrix)
+        baselineLabel = baselineLabel.sum(1) >= (featureSize - EPSILON)
     if standardizeMethod is not None:
-        return (standardizeMethod(featureMatrix),
+        return (np.hstack((standardizeMethod(featureMatrix), numberOfApp)),
                 accumulateLabel[:,None],
                 standardizeMethod(predictMatrix),
                 np.hstack((remainingIndex, predictTimeCol)),
                 baselineLabel[:,None])
     else:
-        return (featureMatrix,
+        return (np.hstack((featureMatrix, numberOfApp)),
                 accumulateLabel[:,None],
                 predictMatrix,
                 np.hstack((remainingIndex, predictTimeCol)),
@@ -449,7 +451,7 @@ if __name__ == '__main__':
     train, test = buildMatrix(normalizeFlag=False)
     raw = rawDataMatrix(inputFile)
     compressed = compressMatrix(raw)
-    _, threshold = generateTopkPercentLabelByCol(compressed.toarray())
+    _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     #randomPlot([[997, 300]], raw, compressed, threshold)
     #randomPlot([[7, 707]], raw, compressed, threshold)
     #randomPlot([[2550, 147]], raw, compressed, threshold)

@@ -20,7 +20,7 @@ import random
 ############################################################################
 WEEK = 7 # don't change this, you know why :-)
 EPSILON = 0.000001
-inputFile = './1/Social Networking/datamatrix_metric_1.npz'
+inputFile = './1/Productivity/datamatrix_metric_1.npz'
 predictTimeWindow = 12
 featureTimeWindow = 12
 slidingWindowSize = 4
@@ -31,7 +31,7 @@ testPortion = 0.2
 top = 60
 percent = 0.6
 
-def rawDataMatrix(inputFile):
+def rawDataMatrix(inputFilename):
     """
     Function: rawDataMatrix
         Read raw data from file.
@@ -41,7 +41,7 @@ def rawDataMatrix(inputFile):
         a csr matrix contains raw data with missing date cleaned.
     """
     # cleaning the missing date
-    return sparseIO.csrLoad(inputFile)[:,:-6]
+    return sparseIO.csrLoad(inputFilename)[:,:-6]
 
 def compressMatrix(rawData, windowSize=None, skipDay=WEEK):
     """
@@ -132,13 +132,15 @@ def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
     tempData = dataMatrix.copy()
     argOrder = (-tempData).argsort(0)
     sortedData = -np.sort(-tempData, axis=0)
-    scan = sortedData.cumsum(axis=0)
+    # scan = sortedData.cumsum(axis=0)
+    scan = np.vstack((np.zeros(sortedData.shape[1]), sortedData.cumsum(axis=0)))[:-1,:]
     expectedDownload = dataMatrix.sum(0) * percentOfDownloads
     trueIndex = scan < expectedDownload
     for i in xrange(dataMatrix.shape[1]):
         indexThisCol = argOrder[trueIndex[:,i].ravel(),i]
         label[indexThisCol, i] = True
-        threshold[i] = dataMatrix[indexThisCol, i].min()
+        if label.sum() != 0: threshold[i] = dataMatrix[indexThisCol, i].min()
+        else: print "WTF"
     return label, threshold, np.tile(label.sum(0), (label.shape[0], 1))
 
 def standardize(featureMatrix):
@@ -337,7 +339,7 @@ def buildMatrix(filename=None,normalizeFlag=False):
     default-parameter-function-call.
     """
     if filename is None: filename = inputFile
-    rawData = rawDataMatrix(inputFile)
+    rawData = rawDataMatrix(filename)
     transformed = compressMatrix(rawData)
     return generateFeatureMatrixAndLabel(transformed, normalizeFlag=normalizeFlag)
 
@@ -404,7 +406,7 @@ def randomRowFromSuccess(dataMatrix, label, indexMatrix, drawNum=1):
 
 def randomRowFromFail(dataMatrix, label, indexMatrix, drawNum=1):
     rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
-    while (label[rowNum]): rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
+    while label[rowNum]: rowNum = np.random.randint(dataMatrix.shape[0], size=drawNum)
     return indexMatrix[rowNum].tolist()
 
 def randomPlot(indexList, totalData, compressedData, threshold):
@@ -420,8 +422,8 @@ def randomPlot(indexList, totalData, compressedData, threshold):
         plt.axvline(x=predictionTime, linestyle='--')
         plt.axvline(x=predictionTime + WEEK * (predictTimeWindow - slidingWindowSize), linestyle='--')
         plt.xlim((predictionTime - 3 * WEEK, predictionTime + WEEK * (predictTimeWindow - slidingWindowSize) + 3 * WEEK))
-        #plt.yscale('log')
-    #plt.show()
+        # plt.yscale('log')
+    # plt.show()
 
 def successNameList(filename=None):
     from plotApp import plotAppWithRow
@@ -439,11 +441,11 @@ def plotTopkPercentTimeSeries(filename=None, percentOfDownloads=None):
     dataMatrix = compressMatrix(rawDataMatrix(filename))
     dataMatrix, _, index = swipeOutInactiveApp(dataMatrix, leastDownload=0)
     topkLabel, _, _ = generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads)
-    #plt.title('Number of Apps hold 60% downloads in {0}'.format(categoryName))
-    #plt.xlabel('time')
-    #plt.ylabel('#App')
+    # plt.title('Number of Apps hold 60% downloads in {0}'.format(categoryName))
+    # plt.xlabel('time')
+    # plt.ylabel('#App')
     plt.plot(topkLabel.sum(0))
-    #plt.show()
+    # plt.show()
 
 if __name__ == '__main__':
     trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
@@ -455,4 +457,5 @@ if __name__ == '__main__':
     #randomPlot([[7, 707]], raw, compressed, threshold)
     #randomPlot([[2550, 147]], raw, compressed, threshold)
     pass
+
 from plotApp import lookUpName

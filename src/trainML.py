@@ -28,8 +28,16 @@ from sklearn.ensemble import AdaBoostClassifier
 # 		Print prediction accuracy to screen.                               #
 # 																		   #
 ############################################################################
+# set labelling parameters
+ModelFileDir = 'models/' # save existing model in this dir
+CategoryName = 'Social Networking'
+LabelPercent = 0.6
+predictTimeWindow = 36
+featureTimeWindow = 12
+windowStepLength = 1
+FeatureMatrixMultiplier = 10000
 
-def setParameters(bml, CategoryName, LabelPercent):
+def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength):
 	"""
 	Function: 
 		update parameters for ML train and test matrix building
@@ -52,8 +60,9 @@ def setParameters(bml, CategoryName, LabelPercent):
 	bml.WEEK = 7 # don't change this, you know why :-)
 	bml.EPSILON = 0.000001
 	bml.inputFile = './1/'+ CategoryName +'/datamatrix_metric_1.npz'
-	bml.predictTimeWindow = 24
-	bml.featureTimeWindow = 9
+	bml.predictTimeWindow = predictTimeWindow
+	bml.featureTimeWindow = featureTimeWindow
+	bml.windowStepLength = windowStepLength
 	bml.slidingWindowSize = 4
 	bml.outOfSigmaSuccess = 1
 	bml.successThreshold = 5
@@ -177,7 +186,7 @@ def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 	getAccuracy('kNN.'+label, prediction, Y2)
 	return prediction
 
-def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25):
+def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25, verbose=False):
 	"""
 	Function: use RandomForest to predict
 	Input:
@@ -185,19 +194,19 @@ def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25):
 		n_estimators: int, number of trees 
 		X1, Y1: train
 		X2, Y2: test
+		verbose: print train test accuracy
 	Output:
 		print accuracy to screen
 		return prediction for test
 	"""
 	label = label + '.RandomForest.' + str(n_estimators)
-	modelFileName = ModelFileDir + label + '.pkl'
 	model = RandomForestClassifier(n_estimators=n_estimators)
-	print '\nStart training RandomForest ...'
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
-	getAccuracy('RandomForest.Train.'+label, prediction1, Y1)
-	getAccuracy('RandomForest.Test.'+label, prediction2, Y2)
+	if verbose:
+		getAccuracy('RandomForest.Train.'+label, prediction1, Y1)
+		getAccuracy('RandomForest.Test.'+label, prediction2, Y2)
 	return prediction2
 
 def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
@@ -213,7 +222,6 @@ def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
 		return prediction for test
 	"""
 	label = label + '.AdaBoost.' + str(n_estimators)
-	modelFileName = ModelFileDir + label + '.pkl'
 	model = AdaBoostClassifier(n_estimators=n_estimators)
 	print '\nStart training AdaBoost ...'
 	model.fit(X1,Y1)
@@ -252,7 +260,7 @@ def kernelkNN(kernel, threshold, dist, idx, Y1):
 		print 'Cannot find kNN kernel:', kernel
 		return 0
 
-def getAccuracy(modelName, prediction, target):
+def getAccuracy(modelName, prediction, target, verbose=True):
 	'''
 	Function: compute and print confusion matrix
 	Input:
@@ -280,19 +288,14 @@ def getAccuracy(modelName, prediction, target):
 			else:
 				FN = FN + 1
 	ACC = (TP/float(TP+FP+0.01) + TN/float(TN+FN+0.01))/2
-	print '\n<'+modelName+'>'
-	print 'True pos:', TP, ' False neg:', FN #,'\t Precision:', (TP+0.01)/float(TP+FN+0.01)*100,'%'
-	print 'False pos:', FP,' True neg:', TN #,'\t Precision:', (TN+0.01)/float(FP+TN+0.01)*100,'%'
-	# print 'Precision:', TP/float(TP+FP+0.01), '\t', TN/float(FN+TN+0.01)
-	# print 'TP/P:', TP/float(TP+FP+0.01), 'TN/N:', TN/float(TN+FN+0.01)
-	# print 'Overall accuracy:', ACC,'%'
 	Precision = TP/float(TP+FP+0.01)
 	Recall = TP/float(TP+FN+0.01)
 	F1 = 2*(Precision*Recall)/(Precision+Recall+0.0001)
-	print 'F1:', F1
-	# for i in range(0,10):
-	# 	print prediction[i], target[i], confidence[i]
-	# return 0
+	if verbose:
+		print '\n<'+modelName+'>'
+		print 'True pos:', TP, ' False neg:', FN #,'\t Precision:', (TP+0.01)/float(TP+FN+0.01)*100,'%'
+		print 'False pos:', FP,' True neg:', TN #,'\t Precision:', (TN+0.01)/float(FP+TN+0.01)*100,'%'
+		print 'F1:', F1
 	return F1, Precision, Recall
 
 def plotResultOnFeature(name, feature, real):
@@ -444,7 +447,7 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 	# print len(newTrain[0]), sum(newTrain[1][:, 0])
 	return newTrain
 
-def getInputForML(bml, FeatureMatrixMultiplier):
+def getInputForML(bml, FeatureMatrixMultiplier, LinearFit = True):
 	# build matrix
 	train, test = bml.buildMatrix()
 	train[0] = train[0]*FeatureMatrixMultiplier
@@ -455,14 +458,16 @@ def getInputForML(bml, FeatureMatrixMultiplier):
 	# newtrain = balanceData(train, posRate=0.0096)
 	newtrain = train
 	# create input for ML algorithms
-	trainFeature = addLinearFitFeatures(newtrain[0])
-	trainFeature = trainFeature[:,:]
+	if LinearFit:
+		trainFeature = addLinearFitFeatures(newtrain[0])
+		testFeature = addLinearFitFeatures(test[0])
+	else:
+		trainFeature = newtrain[0]
+		testFeature = test[0]
 	trainTarget = (newtrain[1][:, 0]).astype(int)		# label
 	trainReal = newtrain[2]								# real feature metrix in prediction window
 	trainIdx = newtrain[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
-	testFeature = addLinearFitFeatures(test[0])
-	testFeature = testFeature[:,:]
 	testTarget = (test[1][:, 0]).astype(int)			# label
 	testReal = test[2]									# real feature metrix in prediction window
 	testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
@@ -495,7 +500,7 @@ def plotMultipleResults(prediction,
 	sampleIdx = range(0, len(prediction))
 	rd.shuffle(sampleIdx)
 	for i in sampleIdx:
-		if prediction[i] == 0 and testTarget[i] == 0 and testBaselineTarget[i] == 1:
+		if prediction[i] == 0 and testTarget[i] == 1 : #and testBaselineTarget[i] == 1
 			# plotResultOnFeature(str(i),testFeature[i],testReal[i])
 			try:
 				names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
@@ -510,13 +515,7 @@ def plotMultipleResults(prediction,
 if __name__ == '__main__':
 	timeStart = time.time()
 	rd.seed(time.time())
-	
-	# set labelling parameters
-	ModelFileDir = 'models/' # save existing model in this dir
-	CategoryName = 'Social Networking'
-	LabelPercent = 0.6
-	FeatureMatrixMultiplier = 10000
-	bml = setParameters(bml, CategoryName, LabelPercent)
+	bml = setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength)
 	
 	# get input data for ML algorithms
 	train, test, trainFeature, trainTarget, trainReal, trainIdx, trainBaselineTarget,\
@@ -532,7 +531,8 @@ if __name__ == '__main__':
 	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
-	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30)
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30, 
+		verbose=True)
 	
 	plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
 

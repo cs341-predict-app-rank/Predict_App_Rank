@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import mysql.connector as sql
 import os
 import sparseIO
-import buildMLInput as bml
 
 def plotAppWithRow (row_date_list, 
                     market = None, 
@@ -205,7 +204,6 @@ def lookUpName (row_idx_list,
 
 
 
-    
 
 
 
@@ -218,3 +216,5 @@ def lookUpName (row_idx_list,
 
 
 
+
+import buildMLInput as bml

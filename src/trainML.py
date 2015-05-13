@@ -30,12 +30,13 @@ from sklearn.ensemble import AdaBoostClassifier
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Social Networking'
+CategoryName = 'Photo and Video'
 LabelPercent = 0.6
 predictTimeWindow = 36
 featureTimeWindow = 12
-windowStepLength = 1
+windowStepLength = 3
 FeatureMatrixMultiplier = 10000
+print CategoryName
 
 def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength):
 	"""
@@ -500,7 +501,7 @@ def plotMultipleResults(prediction,
 	sampleIdx = range(0, len(prediction))
 	rd.shuffle(sampleIdx)
 	for i in sampleIdx:
-		if prediction[i] == 0 and testTarget[i] == 1 : #and testBaselineTarget[i] == 1
+		if prediction[i] == 1 and testTarget[i] == 1 and testBaselineTarget[i] == 0:
 			# plotResultOnFeature(str(i),testFeature[i],testReal[i])
 			try:
 				names = plotResultOnDownload(str(i),[testIdx[i].tolist()], 1, CategoryName, 1, 'safe3', 'cs341')
@@ -531,7 +532,7 @@ if __name__ == '__main__':
 	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
 	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
-	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=30, 
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=150, 
 		verbose=True)
 	
 	plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)

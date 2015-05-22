@@ -86,9 +86,9 @@ for category in lookup_table.keys():
                     delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
                     if delta >= 0 and delta < num_of_days and ratings_series[date]>=0 and ratings_series[date]<=5:
                         ratings_mtx[lookup_table[category][appid], delta] = ratings_series[date]
-            except:
-                print"cannot parse ", app_id, " for ratings"
-                print data_table[app_id][0]
+            #except:
+                #print"cannot parse ", app_id, " for ratings"
+                #print data_table[app_id][0]
             try:
                 reviews_series = json.loads(data_table[app_id][1])
                 for date in reviews_series.keys():

@@ -80,24 +80,24 @@ for category in lookup_table.keys():
     reviews_mtx = sp.lil_matrix((lookup_table[category]['num_of_rows'], num_of_days))
     for app_id in lookup_table[category].keys():
         if app_id in data_table:
-            #try:
-            ratings_series = json.loads(data_table[app_id][0])
-            for date in ratings_series.keys():
-                delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
-                if delta >= 0 and delta < num_of_days and ratings_series[date]>=0 and ratings_series[date]<=5:
-                    ratings_mtx[lookup_table[category][appid], delta] = ratings_series[date]
-            #except:
-                #print"cannot parse ", app_id, " for ratings"
-                #print data_table[app_id][0]
-            #try:
-            reviews_series = json.loads(data_table[app_id][1])
-            for date in reviews_series.keys():
-                delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
-                if delta >= 0 and delta < num_of_days and reviews_series[date]>0:
-                    reviews_mtx[lookup_table[category][appid], delta] = reviews_series[date]
-            #except:
-                #print"cannot parse ", app_id, "for reviews"
-                #print data_table[app_id][1]
+            try:
+                ratings_series = json.loads(data_table[app_id][0])
+                for date in ratings_series.keys():
+                    delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
+                    if delta >= 0 and delta < num_of_days and ratings_series[date]>=0 and ratings_series[date]<=5:
+                        ratings_mtx[lookup_table[category][app_id], delta] = ratings_series[date]
+            except:
+                print"cannot parse ", app_id, " for ratings"
+                print data_table[app_id][0]
+            try:
+                reviews_series = json.loads(data_table[app_id][1])
+                for date in reviews_series.keys():
+                    delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
+                    if delta >= 0 and delta < num_of_days and reviews_series[date]>0:
+                        reviews_mtx[lookup_table[category][app_id], delta] = reviews_series[date]
+            except:
+                print"cannot parse ", app_id, "for reviews"
+                print data_table[app_id][1]
     ratings_mtx = sp.csr_matrix(ratings_mtx)
     reviews_mtx = sp.csr_matrix(reviews_mtx)
     path = '1/' + category + '/'

@@ -58,6 +58,11 @@ for data in cursor:
 
 cursor.close()
 cn.close()
+#save data table
+f = open('data_table.pkl', 'w')
+pickle.dump(data_table, f)
+f.close()
+
 
 f = open('lookup_table.pkl')
 lookup_table = pickle.load(f)
@@ -77,6 +82,7 @@ for category in lookup_table.keys():
                         ratings_mtx[lookup_table[category][appid], delta] = ratings_series[date]
             except:
                 print"cannot parse ", app_id, " for ratings"
+                print data_table[app_id][0]
             try:
                 reviews_series = json.loads(data_table[app_id][1].encode('ascii'))
                 for date in reviews_series.keys():
@@ -85,6 +91,7 @@ for category in lookup_table.keys():
                         reviews_mtx[lookup_table[category][appid], delta] = reviews_series[date]
             except:
                 print"cannot parse ", app_id, "for reviews"
+                print data_table[app_id][1]
     ratings_mtx = sp.csr_matrix(ratings_mtx)
     reviews_mtx = sp.csr_matrix(reviews_mtx)
     path = '1/' + category + '/'

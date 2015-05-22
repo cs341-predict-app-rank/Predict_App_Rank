@@ -48,6 +48,7 @@ config = {
 cn = sql.connect(**config)
 cursor = cn.cursor()
 
+'''
 #Download review and ratings data
 data_table = {}
 query = ("SELECT app_id, ratings_graph, reviews_graph FROM Ratings WHERE country = 'us'")
@@ -62,6 +63,11 @@ cn.close()
 f = open('data_table.pkl', 'w')
 pickle.dump(data_table, f)
 f.close()
+'''
+#read the data table:
+f = open('data_table.pkl')
+data_table = pickle.load(f)
+f.close()
 
 
 f = open('lookup_table.pkl')
@@ -75,7 +81,7 @@ for category in lookup_table.keys():
     for app_id in lookup_table[category].keys():
         if app_id in data_table:
             try:
-                ratings_series = json.loads(data_table[app_id][0].encode('ascii'))
+                ratings_series = json.loads(data_table[app_id][0])
                 for date in ratings_series.keys():
                     delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
                     if delta >= 0 and delta < num_of_days and ratings_series[date]>=0 and ratings_series[date]<=5:
@@ -84,7 +90,7 @@ for category in lookup_table.keys():
                 print"cannot parse ", app_id, " for ratings"
                 print data_table[app_id][0]
             try:
-                reviews_series = json.loads(data_table[app_id][1].encode('ascii'))
+                reviews_series = json.loads(data_table[app_id][1])
                 for date in reviews_series.keys():
                     delta = (datetime.datetime.strptime(date, '%Y-%m-%d') - begin_date).days
                     if delta >= 0 and delta < num_of_days and reviews_series[date]>0:

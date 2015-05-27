@@ -33,23 +33,25 @@ f.close()
 #load twitter data as dataframe, and register it as a table
 #df = SqlContext.jsonFile("~/Downloads/ntweets_2015-03-31.22.4.txt")
 #df = sqlContext.jsonFile("Downloads/twitter_raw")
-df = sqlContext.jsonFile("s3n://cs341-data/twitter_test_500", schema = schema_read)
-print "loaded"
-#df.cache()
-#df.registerTempTable("tweets")
+date_list = ['2014-0'+i.__str__() for i in range(3,10)] + ['2014-' + i.__str__() for i in range(10,13)] + ['2015-0'+i.__str__() for i in range(1,4)]
+for d in date_list:
+    df = sqlContext.jsonFile("s3n://cs341-data/twitter_test_500/*"+d+"*", schema = schema_read)
+    print "loaded"
+    #df.cache()
+    #df.registerTempTable("tweets")
 
-#filter fields and tweets:
-#Only keep body, actor.favoritesCount, actor.followersCount, actor.friendsCount, actor.verified,
-#favoritesCount, retweetCount, verb actor.followersCount AS actor.followersCount, \
-    #actor.friendsCount AS actor.friendsCount, actor.verified AS actor.verified,
-#sqlContext.sql("SELECT body, actor.favoritesCount AS favoritesCount,  favoritesCount, retweetCount, verb FROM tweets ").save("Downloads/processed.json", 'json')
-df.filter("twitter_lang = 'en' ").filter(slen(df.body) > 10).select(df.body, df.favoritesCount, df.retweetCount, df.verb, 
-    df["actor.favoritesCount"].alias('actor.favoritesCount'), df["actor.followersCount"].alias('actor.followersCount'), 
-    df['actor.friendsCount'].alias('actor.friendsCount'), df['actor.verified'].alias('actor.verified'), dateNum(df['postedTime']).alias('date'), 
-    df['twitter_entities.user_mentions.screen_name'].alias('mentions_screen'), df['twitter_entities.user_mentions.name'].alias('mentions_name')).save("s3n://cs341-data/processed_tweets_test_8", "parquet")
+    #filter fields and tweets:
+    #Only keep body, actor.favoritesCount, actor.followersCount, actor.friendsCount, actor.verified,
+    #favoritesCount, retweetCount, verb actor.followersCount AS actor.followersCount, \
+        #actor.friendsCount AS actor.friendsCount, actor.verified AS actor.verified,
+    #sqlContext.sql("SELECT body, actor.favoritesCount AS favoritesCount,  favoritesCount, retweetCount, verb FROM tweets ").save("Downloads/processed.json", 'json')
+    df.filter("twitter_lang = 'en' ").filter(slen(df.body) > 10).select(df.body, df.favoritesCount, df.retweetCount, df.verb, 
+        df["actor.favoritesCount"].alias('actor.favoritesCount'), df["actor.followersCount"].alias('actor.followersCount'), 
+        df['actor.friendsCount'].alias('actor.friendsCount'), df['actor.verified'].alias('actor.verified'), dateNum(df['postedTime']).alias('date'), 
+        df['twitter_entities.user_mentions.screen_name'].alias('mentions_screen'), df['twitter_entities.user_mentions.name'].alias('mentions_name')).save("s3n://cs341-data/processed_tweets_test_11/"+d, "parquet")
 
-#df['twitter_entities.user_mentions.screen_name'].alias('mentions_screen'), df['twitter_entities.user_mentions.name'].alias('mentions_name')
-#df2 = sqlContext.jsonFile("Downloads/processed_tweets_test")
-#df2.printSchema()
+    #df['twitter_entities.user_mentions.screen_name'].alias('mentions_screen'), df['twitter_entities.user_mentions.name'].alias('mentions_name')
+    #df2 = sqlContext.jsonFile("Downloads/processed_tweets_test")
+    #df2.printSchema()
 df2 = sqlContext.parquetFile("s3n://cs341-data/processed_tweets_test_8")
 df2.printSchema()

@@ -30,9 +30,13 @@ slidingWindowSize = 4
 outOfSigmaSuccess = 1
 successThreshold = 5
 garbageThreshold = featureTimeWindow * WEEK  # a download a day, keep doctors away.
+throwOutThreshold = 1000
 testPortion = 0.2
 top = 60
 percent = 0.6
+reviewThreshold = 8
+bucketNum = 20
+lastWindow = 4
 
 def rawDataMatrix(inputFilename):
     """
@@ -77,17 +81,13 @@ def swipeOutInactiveApp(downloadMatrix, predictMatrix=None, leastDownload=None):
     Output:
         cleaned downloadMatrix, predictMatrix and active index
     """
-    if leastDownload is None: leastDownload = garbageThreshold
+    if leastDownload is None: leastDownload = throwOutThreshold * slidingWindowSize
     totalDownload = np.array(downloadMatrix.sum(1)).ravel()
     candidate = np.where(totalDownload > leastDownload)[0]
     if predictMatrix is not None:
         return downloadMatrix[candidate, :].toarray(), predictMatrix[candidate, :].toarray(), candidate[:, None]
     else:
         return downloadMatrix[candidate, :].toarray(), None, candidate[:, None]
-
-def buildReviewMatrix(rawReviewMat):
-    rawReviewMat = rawReviewMat.toarray()[np.squeeze(np.asarray((rawReviewMat != 0).sum(1) > 8)), :]
-    return rawReviewMat
 
 def generateAccumulateLabelByCol(dataMatrix, numberSigma=None):
     """
@@ -149,6 +149,16 @@ def generateTopkPercentLabelByCol(dataMatrix, percentOfDownloads=None):
         if label.sum() != 0: threshold[i] = dataMatrix[indexThisCol, i].min()
         else: print "WTF"
     return label, threshold, np.tile(label.sum(0), (label.shape[0], 1))
+
+def generatePercentileLabel(dataMatrix, numberOfBucket=None):
+    if numberOfBucket is None: numberOfBucket = bucketNum
+    bucketSize = dataMatrix.shape[0] / numberOfBucket
+    argOrder = (-dataMatrix.sum(1)).argsort()
+    index = np.array(range(dataMatrix.shape[0]), dtype='int')
+    index /= bucketSize
+    label = np.zeros(dataMatrix.shape[0])
+    for i, j in zip(argOrder, index): label[i] = j
+    return label
 
 def standardize(featureMatrix):
     """
@@ -291,7 +301,28 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
                 np.hstack((remainingIndex, predictTimeCol)),
                 baselineLabel[:,None])
 
-def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTimeNew,
+def singlePredictTimeInc(totalDataMatrix, predictTimeStamp,
+        windowSize=None, featureSize=None, predictSize=None,
+        windowToBePredicted=None, standardizeMethod=None):
+    if windowSize is None: windowSize = slidingWindowSize
+    if featureSize is None: featureSize = featureTimeWindow - slidingWindowSize + 1
+    if predictSize is None: predictSize = predictTimeWindow - slidingWindowSize + 1
+    if windowToBePredicted is None: windowToBePredicted = lastWindow
+    featureEndTime = predictTimeStamp - windowSize + 1
+    featureStartTime = featureEndTime - featureSize
+    featureTotal = totalDataMatrix[:, featureStartTime:featureEndTime]
+    predictTotal = totalDataMatrix[:, predictTimeStamp:predictTimeStamp + predictSize]
+    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal, leastDownload=0)
+    trainingPercentile = generatePercentileLabel(featureMatrix)
+    predictPercentile = generatePercentileLabel(predictMatrix[:,-windowToBePredicted:])
+    label = predictPercentile - trainingPercentile
+    if standardizeMethod is not None:
+        return (standardizeMethod(featureMatrix), label[:,None],
+                standardizeMethod(predictMatrix))
+    else:
+        return (featureMatrix, label[:,None], predictMatrix)
+
+def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTimeInc,
         windowSize=None, featureWindow=None, predictWindow=None, success=None, normalizeFlag=False):
     """
     Function: generateFeatureMatrixAndLabel
@@ -318,6 +349,9 @@ def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTim
     predictSize = predictWindow - windowSize + 1
     train = []
     test = []
+    if singleMethod == singlePredictTimeInc:
+        totalDataMatrix, _, index = swipeOutInactiveApp(totalDataMatrix)
+        totalDataMatrix = sps.csr_matrix(totalDataMatrix)
     for predictTime in xrange(featureWindow, totalDataMatrix.shape[1] - predictSize):
         if not normalizeFlag:
             dataSet = singleMethod(totalDataMatrix, predictTime)
@@ -458,11 +492,8 @@ def plotTopkPercentTimeSeries(category=None, percentOfDownloads=None):
     plt.show()
 
 if __name__ == '__main__':
-    # trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
-    # train, test = buildMatrix(normalizeFlag=False)
-    raw = rawDataMatrix(reviewFile)
-    compressed = compressMatrix(raw)
-    compressed = buildReviewMatrix(compressed)
+    trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
+    train, test = buildMatrix(normalizeFlag=False)
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

@@ -367,7 +367,7 @@ def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTim
                 test[i] = np.vstack((test[i],singleTest[i]))
     return train, test
 
-def buildMatrix(filename=None, normalizeFlag=False):
+def buildMatrix(filename=None, normalizeFlag=False, singleMethod=singlePredictTimeInc):
     """
     Function: buildMatrix
         Wrapper for the whole procedure.
@@ -382,7 +382,7 @@ def buildMatrix(filename=None, normalizeFlag=False):
     if filename is None: filename = inputFile
     rawData = rawDataMatrix(filename)
     transformed = compressMatrix(rawData)
-    return generateFeatureMatrixAndLabel(transformed, normalizeFlag=normalizeFlag)
+    return generateFeatureMatrixAndLabel(transformed, normalizeFlag=normalizeFlag, singleMethod=singleMethod)
 
 def plotDownloadInflation(filename=None):
     """
@@ -493,7 +493,7 @@ def plotTopkPercentTimeSeries(category=None, percentOfDownloads=None):
 
 if __name__ == '__main__':
     trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
-    train, test = buildMatrix(normalizeFlag=False)
+    train, test = buildMatrix(normalizeFlag=False, singleMethod=singlePredictTimeNew)
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

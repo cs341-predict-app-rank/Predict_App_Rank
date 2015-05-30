@@ -30,7 +30,7 @@ from sklearn.ensemble import AdaBoostClassifier
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Photo and Video'
+CategoryName = 'Productivity'
 LabelPercent = 0.6
 predictTimeWindow = 36
 featureTimeWindow = 12
@@ -187,7 +187,7 @@ def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
 	getAccuracy('kNN.'+label, prediction, Y2)
 	return prediction
 
-def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25, verbose=False):
+def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25, max_depth = None, verbose=False):
 	"""
 	Function: use RandomForest to predict
 	Input:
@@ -201,7 +201,7 @@ def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25, verbose=False):
 		return prediction for test
 	"""
 	label = label + '.RandomForest.' + str(n_estimators)
-	model = RandomForestClassifier(n_estimators=n_estimators)
+	model = RandomForestClassifier(n_estimators=n_estimators,  max_depth=max_depth)
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
@@ -450,7 +450,7 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 
 def getInputForML(bml, FeatureMatrixMultiplier, LinearFit = True):
 	# build matrix
-	train, test = bml.buildMatrix()
+	train, test = bml.buildMatrix(singleMethod=bml.singlePredictTimeNew)
 	train[0] = train[0]*FeatureMatrixMultiplier
 	train[2] = train[2]*FeatureMatrixMultiplier
 	test[0] = test[0]*FeatureMatrixMultiplier
@@ -518,24 +518,25 @@ if __name__ == '__main__':
 	rd.seed(time.time())
 	bml = setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength)
 	
-	# get input data for ML algorithms
+	# # get input data for ML algorithms
 	train, test, trainFeature, trainTarget, trainReal, trainIdx, trainBaselineTarget,\
 	testFeature, testTarget, testReal, testIdx, testBaselineTarget\
 	= getInputForML(bml, FeatureMatrixMultiplier)
 
-	# print data details
-	printMatrixInfo(train, test)
+	# # print data details
+	# printMatrixInfo(train, test)
 
-	# run prediction models
-	getAccuracy('baseline',testBaselineTarget,testTarget)
-	# prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
-	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=150, 
-		verbose=True)
+	# # run prediction models
+	# getAccuracy('baseline',testBaselineTarget,testTarget)
+	# # prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
+	# # prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
+	# # prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
+	# # prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
+	prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
+		n_estimators=150,  max_depth=None, verbose=True)
+	# 	verbose=True)
 	
-	plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
+	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
 
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime

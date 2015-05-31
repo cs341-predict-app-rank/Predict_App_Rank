@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import math
 import buildMLInput as bml
 import numpy as np
 import random as rd
@@ -73,6 +74,8 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.testPortion = 0.2
 	bml.top = 60
 	bml.percent = LabelPercent
+        bml.bucketNum = 20
+        bml.lastWindow = 8
 	return bml
 
 def printMatrixInfo(train, test):
@@ -226,13 +229,13 @@ def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, max_depth 
 		return prediction for test
 	"""
 	label = label + '.ForestRegression.' + str(n_estimators)
-	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, n_jobs=4, verbose=1)
+	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, n_jobs=32, verbose=1)
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
 	if verbose:
-		getMSE('ForestRegression.Train.'+label, prediction1, Y1)
-		getMSE('ForestRegression.Test.'+label, prediction2, Y2)
+		getMSRE('ForestRegression.Train.'+label, prediction1, Y1)
+		getMSRE('ForestRegression.Test.'+label, prediction2, Y2)
 	return [prediction1, prediction2]
 
 def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
@@ -538,12 +541,12 @@ def plotMultipleResults(prediction,
 			break
 	return 0
 
-def getMSE(modelName, prediction, target, verbose=True):
+def getMSRE(modelName, prediction, target, verbose=True):
 	mse = mean_squared_error(target, prediction)
 	if verbose:
 		print '\n<'+modelName+'>'
 		print 'MSR:', mse
-	return mse
+	return math.sqrt(mse)
 
 def useLinearRegression(label, X1, Y1, X2, Y2):
 	"""
@@ -563,8 +566,8 @@ def useLinearRegression(label, X1, Y1, X2, Y2):
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
-	getMSE('LinearRegression.Train.'+label, prediction1, Y1)
-	getMSE('LinearRegression.Test.'+label, prediction2, Y2)
+	getMSRE('LinearRegression.Train.'+label, prediction1, Y1)
+	getMSRE('LinearRegression.Test.'+label, prediction2, Y2)
 	return prediction2
 
 if __name__ == '__main__':
@@ -581,6 +584,8 @@ if __name__ == '__main__':
 	printMatrixInfo(train, test)
 
 	# # run prediction models
+        baseline = testTarget*0
+        getMSRE('baseline',baseline,testTarget)
 	# getAccuracy('baseline',testBaselineTarget,testTarget)
 	# # prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
 	# # prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
@@ -588,13 +593,14 @@ if __name__ == '__main__':
 	# # prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
 	# prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=150, 
 	# prediction = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
-	prediction = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, verbose=True)
+	prediction = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
+                        n_estimators=200, max_depth = 10, verbose=True)
 	# 	verbose=True)
 	
 	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
 
-	# runTime = time.time() - timeStart
-	# print '\nRuntime: ', runTime
+	runTime = time.time() - timeStart
+	print '\nRuntime: ', runTime
 
 
 

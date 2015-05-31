@@ -70,6 +70,13 @@ def compressMatrix(rawData, windowSize=None, skipDay=WEEK):
         slidingWindowMatrix[:, i] = rawData[:, (WEEK * i):(WEEK * i + windowSize)].sum(1).T
     return sps.csr_matrix(slidingWindowMatrix)
 
+def buildReviewMatrix(reviewMatrix, dataPointThreshold=None):
+    if dataPointThreshold is None:
+        dataPointThreshold = reviewThreshold
+    preserveIndex = (reviewMatrix != 0).sum(1) >= dataPointThreshold
+    cleanIndex = np.logical_not(preserveIndex)
+    reviewMatrix[np.where(np.array(cleanIndex))[0]] = 0
+
 def swipeOutInactiveApp(downloadMatrix, predictMatrix=None, leastDownload=None):
     """
     Function: swipeOutInactiveApp
@@ -492,8 +499,10 @@ def plotTopkPercentTimeSeries(category=None, percentOfDownloads=None):
     plt.show()
 
 if __name__ == '__main__':
-    trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
-    train, test = buildMatrix(normalizeFlag=False, singleMethod=singlePredictTimeNew)
+    # trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
+    # train, test = buildMatrix(normalizeFlag=False, singleMethod=singlePredictTimeNew)
+    rawReviewMat = rawDataMatrix(reviewFile)
+    buildReviewMatrix(rawReviewMat)
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

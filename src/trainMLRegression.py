@@ -35,7 +35,7 @@ from sklearn.metrics import mean_squared_error
 ModelFileDir = 'models/' # save existing model in this dir
 CategoryName = 'Social Networking'
 LabelPercent = 0.6
-predictTimeWindow = 36
+predictTimeWindow = 18
 featureTimeWindow = 12
 lastWindowLength = 12
 windowStepLength = 3
@@ -78,6 +78,8 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.percent = LabelPercent
 	bml.bucketNum = 100
 	bml.lastWindow = lastWindowLength
+	print 'lastWindowLength:', bml.lastWindow
+	print 'predictTimeWindow:', bml.predictTimeWindow
 	return bml
 
 def printMatrixInfo(train, test):

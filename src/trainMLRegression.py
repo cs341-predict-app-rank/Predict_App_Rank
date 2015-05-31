@@ -33,11 +33,13 @@ from sklearn.metrics import mean_squared_error
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Productivity'
+CategoryName = 'Social Networking'
 LabelPercent = 0.6
 predictTimeWindow = 36
 featureTimeWindow = 12
+lastWindowLength = 12
 windowStepLength = 3
+NegLabelConst = 0
 FeatureMatrixMultiplier = 1
 print CategoryName
 
@@ -74,8 +76,8 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.testPortion = 0.2
 	bml.top = 60
 	bml.percent = LabelPercent
-        bml.bucketNum = 20
-        bml.lastWindow = 8
+	bml.bucketNum = 100
+	bml.lastWindow = lastWindowLength
 	return bml
 
 def printMatrixInfo(train, test):
@@ -139,82 +141,6 @@ def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	getAccuracy('LogisticSGD.Test.'+label, prediction2, Y2)
 	return prediction2
 
-def useSVM(label, kernel, degree, penalty, X1, Y1, X2, Y2):
-	"""
-	Function: use SVM to predict
-	Input:
-		label: just a name to recognize input data from output
-		kernel: 'poly'
-		degree: 3
-		penalty: 1
-		X1, Y1: train
-		X2, Y2: test
-	Output:
-		print accuracy to screen
-		return prediction for test
-	"""
-	label = label + '.'+ str(kernel) + '.' + str(degree) + '.' + str(penalty)
-	modelFileName = ModelFileDir + 'svm.'+label+'.pkl'
-	try:
-		model = joblib.load(modelFileName)
-	except:
-		model = SVC(kernel = kernel, degree = degree, C = penalty)
-		print '\nStart training SVM ...'
-		model.fit(X1,Y1)
-		joblib.dump(model, modelFileName)
-	prediction1 = model.predict(X1)
-	prediction2 = model.predict(X2)
-	getAccuracy('SVM.Train.'+label, prediction1, Y1)
-	getAccuracy('SVM.Test.'+label, prediction2, Y2)
-	return prediction2
-
-def usekernelkNN(label, kernel, k, threshold, X1, Y1, X2, Y2):
-	"""
-	Function: use SVM to predict
-	Input:
-		label: just a name to recognize input data from output
-		kernel: 'inv', to compute prediction from distances
-		k: number of neighbors
-		threshold: use to determine if the prediction is positive or not
-		X1, Y1: train
-		X2, Y2: test
-	Output:
-		print accuracy to screen
-		return prediction for test
-	"""
-	tree = KDTree(X1, leaf_size = 5)
-	prediction = np.zeros(len(X2))
-	for i in range(0, len(X2)):
-		dist, idx = tree.query(X2[i], k = k)
-		# print dist, idx 
-		prediction[i] = kernelkNN(kernel, threshold, dist[0], idx[0], Y1)
-	label = label + '.'+ str(kernel) + '.' + str(k) + '.' + str(threshold)
-	getAccuracy('kNN.'+label, prediction, Y2)
-	return prediction
-
-def useRandomForest(label, X1, Y1, X2, Y2, n_estimators=25, verbose=False):
-	"""
-	Function: use RandomForest to predict
-	Input:
-		label: just a name to recognize input data from output
-		n_estimators: int, number of trees 
-		X1, Y1: train
-		X2, Y2: test
-		verbose: print train test accuracy
-	Output:
-		print accuracy to screen
-		return prediction for test
-	"""
-	label = label + '.RandomForest.' + str(n_estimators)
-	model = RandomForestClassifier(n_estimators=n_estimators)
-	model.fit(X1,Y1)
-	prediction1 = model.predict(X1)
-	prediction2 = model.predict(X2)
-	if verbose:
-		getAccuracy('RandomForest.Train.'+label, prediction1, Y1)
-		getAccuracy('RandomForest.Test.'+label, prediction2, Y2)
-	return prediction2
-
 def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, max_depth = None, verbose=False):
 	"""
 	Function: use ForestRegression to predict
@@ -259,35 +185,6 @@ def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
 	getAccuracy('AdaBoost.Train.'+label, prediction1, Y1)
 	getAccuracy('AdaBoost.Test.'+label, prediction2, Y2)
 	return prediction2
-
-def kernelkNN(kernel, threshold, dist, idx, Y1):
-	'''
-	Function: implement differnt kernel method to compute prediction from distances
-	Input:
-		kernel: kernel Name, 'inv'
-		threshold: use to determine if the prediction is positive or not
-		dist: distance array, from 'usekernelkNN()'
-		idx: index array, from 'usekernelkNN()'
-		Y1: label array for known neighbors
-	Output:
-		prediction value
-	'''
-	if kernel == 'inv': # inverse
-		numerator = 0
-		denominator = 0
-		for i in range(0,len(dist)):
-			# print dist[i], Y1[idx[i]]
-			dist[i] = dist[i] + 0.0001 # avoid dist == 0
-			numerator = numerator + Y1[idx[i]]/dist[i]
-			denominator = denominator + 1/dist[i]
-		prediction = numerator/denominator
-		if prediction > threshold:
-			return 1.0
-		else:
-			return 0.0
-	else:
-		print 'Cannot find kNN kernel:', kernel
-		return 0
 
 def getAccuracy(modelName, prediction, target, verbose=True):
 	'''
@@ -545,7 +442,7 @@ def getMSRE(modelName, prediction, target, verbose=True):
 	mse = mean_squared_error(target, prediction)
 	if verbose:
 		print '\n<'+modelName+'>'
-		print 'MSR:', mse
+		print 'MSRE:', math.sqrt(mse)
 	return math.sqrt(mse)
 
 def useLinearRegression(label, X1, Y1, X2, Y2):
@@ -570,6 +467,28 @@ def useLinearRegression(label, X1, Y1, X2, Y2):
 	getMSRE('LinearRegression.Test.'+label, prediction2, Y2)
 	return prediction2
 
+def integrateNegLabel(target, label):
+	for i in range(len(target)):
+		if target[i] < 0:
+			target[i] = label
+	return target
+
+def getPosMSRE(modelName, prediction, target, verbose=True):
+	posTar = list()
+	posPre = list()
+	negTar = list()
+	negPre = list()
+	for i in range(len(prediction)):
+		if target[i] > 0 or prediction[i] > 0:
+			posTar.append(target[i])
+			posPre.append(prediction[i])
+
+	mse = mean_squared_error(posTar, posPre)
+	if verbose:
+		print '\nPositive Sample Number:', len(posTar)
+		print '<'+modelName+'>', 'MSRE of Positive Targets:', math.sqrt(mse)
+	return math.sqrt(mse)
+
 if __name__ == '__main__':
 	timeStart = time.time()
 	rd.seed(time.time())
@@ -580,22 +499,21 @@ if __name__ == '__main__':
 	testFeature, testTarget, testReal\
 	= getInputForML(bml, FeatureMatrixMultiplier)
 
+	# unify negtive label
+	trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
+	testTarget = integrateNegLabel(testTarget, NegLabelConst)
 	# # print data details
 	printMatrixInfo(train, test)
 
 	# # run prediction models
-        baseline = testTarget*0
-        getMSRE('baseline',baseline,testTarget)
-	# getAccuracy('baseline',testBaselineTarget,testTarget)
-	# # prediction = useLogSGD(str('NA'), 'log', 'l2', 1, trainFeature, trainTarget, testFeature, testTarget)
-	# # prediction = useSVM('Balanced3.1','poly', 3, 1, trainFeature, trainTarget, testFeature, testTarget)
-	# prediction = usekernelkNN('1000', 'inv', 25, 0.55, trainFeature, trainTarget, testFeature, testTarget)
-	# # prediction = useAdaBoost(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=100)
-	# prediction = useRandomForest(CategoryName, trainFeature, trainTarget, testFeature, testTarget, n_estimators=150, 
 	# prediction = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	prediction = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
-                        n_estimators=200, max_depth = 10, verbose=True)
-	# 	verbose=True)
+                        n_estimators=100, max_depth = 8, verbose=True)
+	getPosMSRE('RFR',prediction[1],testTarget)
+
+	baseline = testTarget*0
+	getMSRE('baseline',baseline,testTarget)
+	getPosMSRE('baseline',baseline,testTarget)
 	
 	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)
 

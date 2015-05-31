@@ -37,7 +37,9 @@ CategoryName = 'Social Networking'
 LabelPercent = 0.6
 predictTimeWindow = 36
 featureTimeWindow = 12
+lastWindowLength = 12
 windowStepLength = 3
+NegLabelConst = 0
 FeatureMatrixMultiplier = 1
 print CategoryName
 
@@ -75,7 +77,7 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.top = 60
 	bml.percent = LabelPercent
 	bml.bucketNum = 100
-	bml.lastWindow = 12
+	bml.lastWindow = lastWindowLength
 	return bml
 
 def printMatrixInfo(train, test):
@@ -498,9 +500,8 @@ if __name__ == '__main__':
 	= getInputForML(bml, FeatureMatrixMultiplier)
 
 	# unify negtive label
-	label = 0
-	trainTarget = integrateNegLabel(trainTarget, label)
-	testTarget = integrateNegLabel(testTarget, label)
+	trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
+	testTarget = integrateNegLabel(testTarget, NegLabelConst)
 	# # print data details
 	printMatrixInfo(train, test)
 

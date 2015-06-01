@@ -34,9 +34,9 @@ from sklearn.metrics import mean_squared_error
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
 # CategoryName = 'Social Networking'
-CategoryName = 'Photo and Video'
+CategoryName = 'Productivity'
 LabelPercent = 0.6
-predictTimeWindow = 36
+predictTimeWindow = 12
 featureTimeWindow = 12
 lastWindowLength = 8
 windowStepLength = 3
@@ -377,30 +377,43 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 	# print len(newTrain[0]), sum(newTrain[1][:, 0])
 	return newTrain
 
-def getInputForML(bml, FeatureMatrixMultiplier, LinearFit = True):
+def getInputForML(bml, FeatureMatrixMultiplier, Review = True, LinearFit = True):
 	# build matrix
 	train, test = bml.buildMatrix()
+
+	orgtrain = train
+	orgtest = test
+
+	if Review:
+		rawReviewMat = bml.rawDataMatrix(bml.reviewFile)
+		reviewMatrix = bml.compressMatrix(bml.buildReviewMatrix(rawReviewMat))
+		bml.pruneMatrix(train, reviewMatrix)
+		bml.pruneMatrix(test, reviewMatrix)
+	else:
+		pass
+
 	train[0] = train[0]*FeatureMatrixMultiplier
 	train[2] = train[2]*FeatureMatrixMultiplier
 	test[0] = test[0]*FeatureMatrixMultiplier
 	test[2] = test[2]*FeatureMatrixMultiplier
 	# balance samples
 	# newtrain = balanceData(train, posRate=0.0096)
-	newtrain = train
+	
 	# create input for ML algorithms
 	if LinearFit:
-		trainFeature = addLinearFitFeatures(newtrain[0])
+		trainFeature = addLinearFitFeatures(train[0])
 		testFeature = addLinearFitFeatures(test[0])
+		print 'Finished adding linear fit features.'
 	else:
-		trainFeature = newtrain[0]
+		trainFeature = train[0]
 		testFeature = test[0]
-	trainTarget = (newtrain[1][:, 0]).astype(int)		# label
-	trainReal = newtrain[2]								# real feature metrix in prediction window
-	# trainIdx = newtrain[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	trainTarget = (train[1][:, 0]).astype(int)		# label
+	trainReal = train[2]								# real feature metrix in prediction window
+	trainIdx = train[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	# trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
 	testTarget = (test[1][:, 0]).astype(int)			# label
 	testReal = test[2]									# real feature metrix in prediction window
-	# testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+	testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
 	# testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
 	print 'Finished labelling'
 	return train, test, trainFeature, trainTarget, trainReal,\
@@ -470,6 +483,26 @@ def useLinearRegression(label, X1, Y1, X2, Y2):
 	getMSRE('LinearRegression.Test.'+label, prediction2, Y2)
 	return prediction2
 
+def useSVR(label, X1, Y1, X2, Y2):
+	"""
+	Function: use SVR to predict
+	Input:
+		label: just a name to recognize input data from output
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
+		return prediction for test
+	"""
+	label = label + '.SVR.'
+	model = SVR(kernel='poly', degree= 3, C=1.0, epsilon=0.2)
+	model.fit(X1,Y1)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
+	getMSRE('LinearRegression.Train.'+label, prediction1, Y1)
+	getMSRE('LinearRegression.Test.'+label, prediction2, Y2)
+	return prediction2
+
 def integrateNegLabel(target, label):
 	for i in range(len(target)):
 		if target[i] < 0:
@@ -498,7 +531,7 @@ def getPosMSRE(modelName, prediction, target, verbose=True):
 		print '<'+modelName+'>', 'MSRE of Negative Targets:', math.sqrt(mseN)
 
 def plotTargetHist(title, target):
-	plt.hist(target, bins=bucketNum/2)
+	plt.hist(target, bins=bucketNum/2, range=[-150, 150])
 	plt.title(title)
 	plt.xlabel("Rank Bucket Change")
 	plt.ylabel("Number of Samples")
@@ -513,22 +546,25 @@ if __name__ == '__main__':
 	# get input data for ML algorithms
 	train, test, trainFeature, trainTarget, trainReal, \
 	testFeature, testTarget, testReal\
-	= getInputForML(bml, FeatureMatrixMultiplier)
+	= getInputForML(bml, FeatureMatrixMultiplier, Review = False)
 
 	# unify negtive label
-	trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
-	testTarget = integrateNegLabel(testTarget, NegLabelConst)
+	# trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
+	# testTarget = integrateNegLabel(testTarget, NegLabelConst)
+	
 	# print data details
 	printMatrixInfo(train, test)
 
 	# run prediction models
 	prediction_rfr = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
                         n_estimators=200, max_depth = 8, verbose=True)
+	# prediction_svr = useSVR(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	prediction_lin = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	baseline = testTarget*0
-	getMSRE('baseline',baseline,testTarget)
 
+	getMSRE('baseline',baseline,testTarget)
 	getPosMSRE('RFR',prediction_rfr[1],testTarget)
+	# getPosMSRE('SVR',prediction_svr,testTarget)
 	getPosMSRE('LinearRegression',prediction_lin,testTarget)
 	getPosMSRE('baseline',baseline,testTarget)
 	
@@ -537,7 +573,7 @@ if __name__ == '__main__':
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 
-
+	# joblib.dump([train, test], 'PV8-12.pkl')
 
 
 

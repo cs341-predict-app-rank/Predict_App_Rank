@@ -33,14 +33,16 @@ from sklearn.metrics import mean_squared_error
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-CategoryName = 'Social Networking'
+# CategoryName = 'Social Networking'
+CategoryName = 'Photo and Video'
 LabelPercent = 0.6
-predictTimeWindow = 18
+predictTimeWindow = 36
 featureTimeWindow = 12
-lastWindowLength = 12
+lastWindowLength = 8
 windowStepLength = 3
-NegLabelConst = 0
+NegLabelConst = -1
 FeatureMatrixMultiplier = 1
+bucketNum = 100
 print CategoryName
 
 def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength):
@@ -76,7 +78,7 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.testPortion = 0.2
 	bml.top = 60
 	bml.percent = LabelPercent
-	bml.bucketNum = 100
+	bml.bucketNum = bucketNum
 	bml.lastWindow = lastWindowLength
 	print 'lastWindowLength:', bml.lastWindow
 	print 'predictTimeWindow:', bml.predictTimeWindow
@@ -157,7 +159,7 @@ def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, max_depth 
 		return prediction for test
 	"""
 	label = label + '.ForestRegression.' + str(n_estimators)
-	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, n_jobs=32, verbose=1)
+	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, n_jobs=32)
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
@@ -461,7 +463,6 @@ def useLinearRegression(label, X1, Y1, X2, Y2):
 	"""
 	label = label + '.LinearRegression.'
 	model = linear_model.LinearRegression()
-	print '\nStart training LinearRegression ...'
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
@@ -472,7 +473,7 @@ def useLinearRegression(label, X1, Y1, X2, Y2):
 def integrateNegLabel(target, label):
 	for i in range(len(target)):
 		if target[i] < 0:
-			target[i] = label
+			target[i] = target[i]
 	return target
 
 def getPosMSRE(modelName, prediction, target, verbose=True):
@@ -481,22 +482,35 @@ def getPosMSRE(modelName, prediction, target, verbose=True):
 	negTar = list()
 	negPre = list()
 	for i in range(len(prediction)):
-		if target[i] > 0 or prediction[i] > 0:
+		if target[i] > 0:
 			posTar.append(target[i])
 			posPre.append(prediction[i])
-
-	mse = mean_squared_error(posTar, posPre)
+		if target[i] < 0:
+			negTar.append(target[i])
+			negPre.append(prediction[i])
+	mseP = mean_squared_error(posTar, posPre)
+	mseN = mean_squared_error(negTar, negPre)
 	if verbose:
-		print '\nPositive Sample Number:', len(posTar)
-		print '<'+modelName+'>', 'MSRE of Positive Targets:', math.sqrt(mse)
-	return math.sqrt(mse)
+		print '\nOverall  Sample Number:', len(target)
+		print 'Positive Sample Number:', len(posTar)
+		print 'Negative Sample Number:', len(negTar)
+		print '<'+modelName+'>', 'MSRE of Positive Targets:', math.sqrt(mseP)
+		print '<'+modelName+'>', 'MSRE of Negative Targets:', math.sqrt(mseN)
+
+def plotTargetHist(title, target):
+	plt.hist(target, bins=bucketNum/2)
+	plt.title(title)
+	plt.xlabel("Rank Bucket Change")
+	plt.ylabel("Number of Samples")
+	plt.show()
+
 
 if __name__ == '__main__':
 	timeStart = time.time()
 	rd.seed(time.time())
 	bml = setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength)
 	
-	# # get input data for ML algorithms
+	# get input data for ML algorithms
 	train, test, trainFeature, trainTarget, trainReal, \
 	testFeature, testTarget, testReal\
 	= getInputForML(bml, FeatureMatrixMultiplier)
@@ -504,17 +518,18 @@ if __name__ == '__main__':
 	# unify negtive label
 	trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
 	testTarget = integrateNegLabel(testTarget, NegLabelConst)
-	# # print data details
+	# print data details
 	printMatrixInfo(train, test)
 
-	# # run prediction models
-	# prediction = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
-	prediction = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
-                        n_estimators=100, max_depth = 8, verbose=True)
-	getPosMSRE('RFR',prediction[1],testTarget)
-
+	# run prediction models
+	prediction_rfr = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
+                        n_estimators=200, max_depth = 8, verbose=True)
+	prediction_lin = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	baseline = testTarget*0
 	getMSRE('baseline',baseline,testTarget)
+
+	getPosMSRE('RFR',prediction_rfr[1],testTarget)
+	getPosMSRE('LinearRegression',prediction_lin,testTarget)
 	getPosMSRE('baseline',baseline,testTarget)
 	
 	# plotMultipleResults(prediction, testTarget, testBaselineTarget, testIdx, CategoryName, 50)

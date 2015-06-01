@@ -24,7 +24,7 @@ categoryDir = './1/Productivity/'
 inputFile = categoryDir + 'datamatrix_metric_1.npz'
 ratingFile = categoryDir + 'datamatrix_ratings.npz'
 reviewFile = categoryDir + 'datamatrix_reviews.npz'
-predictTimeWindow = 36
+predictTimeWindow = 24
 featureTimeWindow = 12
 slidingWindowSize = 4
 outOfSigmaSuccess = 1
@@ -34,7 +34,7 @@ throwOutThreshold = 1000
 testPortion = 0.2
 top = 60
 percent = 0.6
-reviewThreshold = 8
+reviewThreshold = 4
 bucketNum = 20
 lastWindow = 4
 
@@ -78,7 +78,7 @@ def buildReviewMatrix(reviewMatrix, dataPointThreshold=None):
     cleanIndex = np.logical_not(preserveIndex)
     reviewMatrix[np.where(np.array(cleanIndex))[0]] = 0
     for i, row in enumerate(reviewMatrix):
-        print i
+        if i % 10000 == 0: print i
         index = np.where(row.toarray().ravel() != 0)[0]
         for j in xrange(1, len(index)):
             start = row[0, index[j - 1]]
@@ -406,8 +406,26 @@ def buildMatrix(filename=None, normalizeFlag=False, singleMethod=singlePredictTi
     transformed = compressMatrix(rawData)
     return generateFeatureMatrixAndLabel(transformed, normalizeFlag=normalizeFlag, singleMethod=singleMethod)
 
-def pruneMatrix():
-    pass
+def pruneMatrix(data, reviewMatrix, featureWindow=None):
+    if featureWindow is None: featureWindow = featureTimeWindow
+    dataEntry = len(data[0])
+    index = []
+    reviewFeature = []
+    for i in xrange(dataEntry):
+        if i % 10000 == 0: print i
+        idx, time = data[3][i]
+        idx = int(idx)
+        col = int(time / WEEK)
+        reviewData = reviewMatrix[idx, col - featureWindow:col].toarray()
+        if (reviewData != 0).sum() < featureWindow: continue
+        else:
+            reviewFeature.append(reviewData.ravel())
+            index.append(i)
+    reviewFeature = np.array(reviewFeature)
+    for i, matrix in enumerate(data):
+        data[i] = matrix[index, :]
+    data[0] = np.hstack((data[0], reviewFeature))
+
 
 def plotDownloadInflation(filename=None):
     """
@@ -517,10 +535,12 @@ def plotTopkPercentTimeSeries(category=None, percentOfDownloads=None):
     plt.show()
 
 if __name__ == '__main__':
-    trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
-    train, test = buildMatrix(normalizeFlag=False, singleMethod=singlePredictTimeNew)
-    #rawReviewMat = rawDataMatrix(reviewFile)
-    #reviewMatrix = buildReviewMatrix(rawReviewMat)
+    #trainNormalized, testNormalized = buildMatrix(normalizeFlag=True)
+    train, test = buildMatrix(normalizeFlag=False)
+    rawReviewMat = rawDataMatrix(reviewFile)
+    reviewMatrix = compressMatrix(buildReviewMatrix(rawReviewMat))
+    pruneMatrix(train, reviewMatrix)
+    pruneMatrix(test, reviewMatrix)
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

@@ -498,7 +498,7 @@ def getPosMSRE(modelName, prediction, target, verbose=True):
 		print '<'+modelName+'>', 'MSRE of Negative Targets:', math.sqrt(mseN)
 
 def plotTargetHist(title, target):
-	plt.hist(target, bins=bucketNum/4)
+	plt.hist(target, bins=bucketNum/2)
 	plt.title(title)
 	plt.xlabel("Rank Bucket Change")
 	plt.ylabel("Number of Samples")

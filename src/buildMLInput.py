@@ -563,6 +563,13 @@ if __name__ == '__main__':
     reviewMatrix = compressMatrix(buildReviewMatrix(rawReviewMat))
     pruneMatrix(train, reviewMatrix)
     pruneMatrix(test, reviewMatrix)
+    # Twitter sample:
+    # rawTwitterMatrix = rawDataMatrix(twitterFile) # twitterFile should be provided by caller
+    # twitterMatrix = compressMatrix(rawTwitterMatrix) # this is fast
+    # pruneMatrixByTwitter(train, twitterMatrix) # This may take a while
+
+
+
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

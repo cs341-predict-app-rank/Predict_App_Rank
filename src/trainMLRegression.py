@@ -33,8 +33,8 @@ from sklearn.metrics import mean_squared_error
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-# CategoryName = 'Social Networking'
-CategoryName = 'Productivity'
+# CategoryName = 'Utilities'
+CategoryName = 'Social Networking'
 LabelPercent = 0.6
 predictTimeWindow = 12
 featureTimeWindow = 12
@@ -43,6 +43,8 @@ windowStepLength = 3
 NegLabelConst = -1
 FeatureMatrixMultiplier = 1
 bucketNum = 100
+ReviewFeature = True
+RatingFeature = True
 print CategoryName
 
 def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength):
@@ -67,7 +69,10 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	"""
 	bml.WEEK = 7 # don't change this, you know why :-)
 	bml.EPSILON = 0.000001
-	bml.inputFile = './1/'+ CategoryName +'/datamatrix_metric_1.npz'
+	bml.categoryDir = './1/'+ CategoryName +'/'
+	bml.inputFile = bml.categoryDir + 'datamatrix_metric_1.npz'
+	bml.ratingFile = bml.categoryDir + 'datamatrix_ratings.npz'
+	bml.reviewFile = bml.categoryDir + 'datamatrix_reviews.npz'
 	bml.predictTimeWindow = predictTimeWindow
 	bml.featureTimeWindow = featureTimeWindow
 	bml.windowStepLength = windowStepLength
@@ -80,6 +85,7 @@ def setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTim
 	bml.percent = LabelPercent
 	bml.bucketNum = bucketNum
 	bml.lastWindow = lastWindowLength
+	print 'bucketNum:', bml.bucketNum
 	print 'lastWindowLength:', bml.lastWindow
 	print 'predictTimeWindow:', bml.predictTimeWindow
 	return bml
@@ -96,31 +102,9 @@ def printMatrixInfo(train, test):
 	print '\n==== Train Matrix Info ===='
 	print 'Train Feature Matrix:   ',len(train[0][:,0]),',',len(train[0][0,:])
 	print 'Train Label: ',len(train[1][:,0]),',',len(train[1][0,:])
-	# print 'Train Baseline Label: ',len(train[4][:,0]),',',len(train[4][0,:])
-	# same1 = 0.0
-	# same0 = 0.0
-	# for idx in range(0,len(train[1][:,0])):
-	# 	if train[1][idx][0] == 1 and train[1][idx][0] == train[4][idx][0]:
-	# 		same1 = same1 + 1
-	# 	if train[1][idx][0] == 0 and train[1][idx][0] == train[4][idx][0]:
-	# 		same0 = same0 + 1
-	# print 'Positive Label          #:', sum(train[1][:,0])
-	# print 'Positive Baseline Label #:', sum(train[4][:,0])
-	# print 'Both Postive Label      #:', same1, '(',same1/float(sum(train[1][:,0])), ')'
 	print '\n==== Test Matrix Info ===='
 	print 'Test Feature Matrix: ',len(test[0][:,0]),',',len(test[0][0,:])
 	print 'Test Label: ',len(test[1][:,0]),',',len(test[1][0,:])
-	# print 'Test Baseline Label: ',len(test[4][:,0]),',',len(test[4][0,:])
-	# same1 = 0.0
-	# same0 = 0.0
-	# for idx in range(0,len(test[1][:,0])):
-	# 	if test[1][idx][0] == 1 and test[1][idx][0] == test[4][idx][0]:
-	# 		same1 = same1 + 1
-	# 	if test[1][idx][0] == 0 and test[1][idx][0] == test[4][idx][0]:
-	# 		same0 = same0 + 1
-	# print 'Positive Label          #:', sum(test[1][:,0])
-	# print 'Positive Baseline Label #:', sum(test[4][:,0])
-	# print 'Both Postive Label      #:', same1, '(',same1/float(sum(test[1][:,0])), ')'
 
 def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	"""
@@ -145,7 +129,8 @@ def useLogSGD(label, loss, penalty, regularization_strength, X1, Y1, X2, Y2):
 	getAccuracy('LogisticSGD.Test.'+label, prediction2, Y2)
 	return prediction2
 
-def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, max_depth = None, verbose=False):
+def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, 
+			max_depth = None, min_samples_split=1, verbose=False):
 	"""
 	Function: use ForestRegression to predict
 	Input:
@@ -159,7 +144,8 @@ def useRandomForestRegression(label, X1, Y1, X2, Y2, n_estimators=25, max_depth 
 		return prediction for test
 	"""
 	label = label + '.ForestRegression.' + str(n_estimators)
-	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, n_jobs=32)
+	model = RandomForestRegressor(n_estimators=n_estimators, max_depth = max_depth, 
+		min_samples_split = min_samples_split, n_jobs=32)
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
@@ -377,47 +363,6 @@ def balanceData(train, posRate=0.5, noiseRate=0.01, growRate=1):	# data, postive
 	# print len(newTrain[0]), sum(newTrain[1][:, 0])
 	return newTrain
 
-def getInputForML(bml, FeatureMatrixMultiplier, Review = True, LinearFit = True):
-	# build matrix
-	train, test = bml.buildMatrix()
-
-	orgtrain = train
-	orgtest = test
-
-	if Review:
-		rawReviewMat = bml.rawDataMatrix(bml.reviewFile)
-		reviewMatrix = bml.compressMatrix(bml.buildReviewMatrix(rawReviewMat))
-		bml.pruneMatrix(train, reviewMatrix)
-		bml.pruneMatrix(test, reviewMatrix)
-	else:
-		pass
-
-	train[0] = train[0]*FeatureMatrixMultiplier
-	train[2] = train[2]*FeatureMatrixMultiplier
-	test[0] = test[0]*FeatureMatrixMultiplier
-	test[2] = test[2]*FeatureMatrixMultiplier
-	# balance samples
-	# newtrain = balanceData(train, posRate=0.0096)
-	
-	# create input for ML algorithms
-	if LinearFit:
-		trainFeature = addLinearFitFeatures(train[0])
-		testFeature = addLinearFitFeatures(test[0])
-		print 'Finished adding linear fit features.'
-	else:
-		trainFeature = train[0]
-		testFeature = test[0]
-	trainTarget = (train[1][:, 0]).astype(int)		# label
-	trainReal = train[2]								# real feature metrix in prediction window
-	trainIdx = train[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
-	# trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
-	testTarget = (test[1][:, 0]).astype(int)			# label
-	testReal = test[2]									# real feature metrix in prediction window
-	testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
-	# testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
-	print 'Finished labelling'
-	return train, test, trainFeature, trainTarget, trainReal,\
-			testFeature, testTarget, testReal
 
 def plotMultipleResults(prediction, 
 						testTarget, 
@@ -495,7 +440,7 @@ def useSVR(label, X1, Y1, X2, Y2):
 		return prediction for test
 	"""
 	label = label + '.SVR.'
-	model = SVR(kernel='poly', degree= 3, C=1.0, epsilon=0.2)
+	model = SVR(kernel='rbf', degree= 3, C=1.0, epsilon=0.2)
 	model.fit(X1,Y1)
 	prediction1 = model.predict(X1)
 	prediction2 = model.predict(X2)
@@ -537,6 +482,77 @@ def plotTargetHist(title, target):
 	plt.ylabel("Number of Samples")
 	plt.show()
 
+def getInputForML(bml, FeatureMatrixMultiplier, Review = True, Rating = True, \
+	LinearFit = True, LoadDir = None):
+	if LoadDir != None:
+		# load existing matrix
+		data = joblib.load(loadDir)
+		train = data[0]
+		test = data[1]
+
+		trainFeature = train[0]
+		trainTarget = (train[1][:, 0]).astype(int)		# label
+		trainReal = train[2]								# real feature metrix in prediction window
+		trainIdx = train[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+		# trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
+		testFeature = test[0]
+		testTarget = (test[1][:, 0]).astype(int)			# label
+		testReal = test[2]									# real feature metrix in prediction window
+		testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+		# testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
+		print 'Finished labelling'
+		return train, test, trainFeature, trainTarget, trainReal,\
+				testFeature, testTarget, testReal
+	else:
+		# build new matrix
+		train, test = bml.buildMatrix()
+
+		orgtrain = train
+		orgtest = test
+
+		if LinearFit:
+			print 'Start adding Linear Fit points'
+			train[0] = addLinearFitFeatures(train[0])
+			test[0] = addLinearFitFeatures(test[0])
+			print 'Finished adding linear fit feature'
+
+		if Review:
+			print 'Start adding Review Feature'
+			rawReviewMat = bml.rawDataMatrix(bml.reviewFile)
+			reviewMatrix = bml.compressMatrix(bml.buildReviewMatrix(rawReviewMat))
+			bml.pruneMatrix(train, reviewMatrix)
+			bml.pruneMatrix(test, reviewMatrix)
+			print 'Finished adding Review feature'
+		
+		if Rating:
+			print 'Start adding Rating Feature'
+			rawReviewMat = bml.rawDataMatrix(bml.ratingFile)
+			reviewMatrix = bml.compressMatrix(bml.buildReviewMatrix(rawReviewMat))
+			bml.pruneMatrix(train, reviewMatrix)
+			bml.pruneMatrix(test, reviewMatrix)
+			print 'Finished adding Rating feature'
+
+		train[0] = train[0]*FeatureMatrixMultiplier
+		train[2] = train[2]*FeatureMatrixMultiplier
+		test[0] = test[0]*FeatureMatrixMultiplier
+		test[2] = test[2]*FeatureMatrixMultiplier
+		# balance samples
+		# newtrain = balanceData(train, posRate=0.0096)
+		
+		# create input for ML algorithms
+		trainFeature = train[0]
+		trainTarget = (train[1][:, 0]).astype(int)		# label
+		trainReal = train[2]								# real feature metrix in prediction window
+		trainIdx = train[3]								# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+		# trainBaselineTarget = (newtrain[4][:, 0]).astype(int)# label for baseline model
+		testFeature = test[0]
+		testTarget = (test[1][:, 0]).astype(int)			# label
+		testReal = test[2]									# real feature metrix in prediction window
+		testIdx = test[3]									# index for plotAppWithRow(), need to run .tolist() before input to plotAppWithRow()
+		# testBaselineTarget = (test[4][:, 0]).astype(int)	# label for baseline model
+		print 'Finished labelling'
+		return train, test, trainFeature, trainTarget, trainReal,\
+				testFeature, testTarget, testReal
 
 if __name__ == '__main__':
 	timeStart = time.time()
@@ -544,9 +560,11 @@ if __name__ == '__main__':
 	bml = setParameters(bml, CategoryName, LabelPercent, predictTimeWindow, featureTimeWindow, windowStepLength)
 	
 	# get input data for ML algorithms
-	train, test, trainFeature, trainTarget, trainReal, \
+	train, test, \
+	trainFeature, trainTarget, trainReal, \
 	testFeature, testTarget, testReal\
-	= getInputForML(bml, FeatureMatrixMultiplier, Review = False)
+	= getInputForML(bml, FeatureMatrixMultiplier, Review = ReviewFeature, Rating = RatingFeature)
+
 
 	# unify negtive label
 	# trainTarget = integrateNegLabel(trainTarget, NegLabelConst)
@@ -573,7 +591,9 @@ if __name__ == '__main__':
 	runTime = time.time() - timeStart
 	print '\nRuntime: ', runTime
 
-	# joblib.dump([train, test], 'PV8-12.pkl')
+
+	SaveDir = CategoryName + '-' + predictTimeWindow + '-' +bucketNum + '.pkl'
+	joblib.dump([train, test], SaveDir)
 
 
 

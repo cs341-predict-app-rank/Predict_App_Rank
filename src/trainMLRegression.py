@@ -17,6 +17,7 @@ from sklearn.externals import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 ############################################################################
@@ -33,8 +34,8 @@ from sklearn.metrics import mean_squared_error
 ############################################################################
 # set labelling parameters
 ModelFileDir = 'models/' # save existing model in this dir
-# CategoryName = 'Utilities'
-CategoryName = 'Social Networking'
+CategoryName = 'Utilities'
+# CategoryName = 'Social Networking'
 LabelPercent = 0.6
 predictTimeWindow = 12
 featureTimeWindow = 12
@@ -42,7 +43,7 @@ lastWindowLength = 8
 windowStepLength = 3
 NegLabelConst = -1
 FeatureMatrixMultiplier = 1
-bucketNum = 100
+bucketNum = 300
 ReviewFeature = True
 RatingFeature = True
 print CategoryName
@@ -174,6 +175,30 @@ def useAdaBoost(label, X1, Y1, X2, Y2, n_estimators=100):
 	prediction2 = model.predict(X2)
 	getAccuracy('AdaBoost.Train.'+label, prediction1, Y1)
 	getAccuracy('AdaBoost.Test.'+label, prediction2, Y2)
+	return prediction2
+
+def useGBR(label, X1, Y1, X2, Y2, n_estimators=100, 
+			max_depth = 3, min_samples_split=1, verbose=False):
+	"""
+	Function: use GradientBoostingRegressor to predict
+	Input:
+		label: just a name to recognize input data from output
+		n_estimators: int, The maximum number of estimators at which boosting is terminated
+		X1, Y1: train
+		X2, Y2: test
+	Output:
+		print accuracy to screen
+		return prediction for test
+	"""
+	label = label + '.GradientBoostingRegressor.' + str(n_estimators)
+	model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth = max_depth, 
+		min_samples_split = min_samples_split)
+	model.fit(X1,Y1)
+	prediction1 = model.predict(X1)
+	prediction2 = model.predict(X2)
+	if verbose:
+		getMSRE('GradientBoostingRegressor.Train.'+label, prediction1, Y1)
+		getMSRE('GradientBoostingRegressor.Test.'+label, prediction2, Y2)
 	return prediction2
 
 def getAccuracy(modelName, prediction, target, verbose=True):
@@ -576,6 +601,8 @@ if __name__ == '__main__':
 	# run prediction models
 	prediction_rfr = useRandomForestRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
                         n_estimators=200, max_depth = 8, verbose=True)
+	prediction_gbr = useGBR(CategoryName, trainFeature, trainTarget, testFeature, testTarget, \
+                        n_estimators=200, max_depth = 3, verbose=True)
 	# prediction_svr = useSVR(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	prediction_lin = useLinearRegression(CategoryName, trainFeature, trainTarget, testFeature, testTarget)
 	baseline = testTarget*0

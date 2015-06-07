@@ -431,6 +431,28 @@ def pruneMatrix(data, reviewMatrix, featureWindow=None):
     data[0] = np.hstack((data[0], reviewFeature))
     return
 
+def pruneMatrixByTwitter(data, twitterMatrix, featureWindow=None):
+    if featureWindow is None: featureWindow = featureTimeWindow
+    dataEntry = len(data[0])
+    index = []
+    reviewFeature = []
+    for i in xrange(dataEntry):
+        if i % 10000 == 0: print i
+        idx, time = data[3][i]
+        idx = int(idx)
+        col = int(time / WEEK)
+        start = col - featureWindow
+        # twitterDate = range(366, 608) + range(731, 820)
+        # twitterWindow = set(range(53, 83) + range(105, 116))
+        if (53 <= start <= 82) or (105 <= start <= 115):
+            reviewData = twitterMatrix[idx, start:col].toarray()
+            reviewFeature.append(reviewData.ravel())
+            index.append(i)
+    reviewFeature = np.array(reviewFeature)
+    for i, matrix in enumerate(data):
+        data[i] = matrix[index, :]
+    data[0] = np.hstack((data[0], reviewFeature))
+
 def plotDownloadInflation(filename=None):
     """
     Function: plotDownloadInflation
@@ -545,6 +567,13 @@ if __name__ == '__main__':
     reviewMatrix = compressMatrix(buildReviewMatrix(rawReviewMat))
     pruneMatrix(train, reviewMatrix)
     pruneMatrix(test, reviewMatrix)
+    # Twitter sample:
+    # rawTwitterMatrix = rawDataMatrix(twitterFile) # twitterFile should be provided by caller
+    # twitterMatrix = compressMatrix(rawTwitterMatrix) # this is fast
+    # pruneMatrixByTwitter(train, twitterMatrix) # This may take a while
+
+
+
     # _, threshold, _ = generateTopkPercentLabelByCol(compressed.toarray())
     # randomPlot([[997, 300]], raw, compressed, threshold)
     # randomPlot([[7, 707]], raw, compressed, threshold)

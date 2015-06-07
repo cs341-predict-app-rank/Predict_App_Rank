@@ -29,7 +29,7 @@ featureTimeWindow = 12
 slidingWindowSize = 4
 outOfSigmaSuccess = 1
 successThreshold = 5
-garbageThreshold = featureTimeWindow * WEEK  # a download a day, keep doctors away.
+garbageThreshold = 0#featureTimeWindow * WEEK  # a download a day, keep doctors away.
 throwOutThreshold = 1000
 testPortion = 0.2
 top = 60
@@ -227,7 +227,8 @@ def sample(dataSet, seed, portionOfTestSet=None):
     return train, test
 
 def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
-        featureSize=None, predictSize=None, success=None, numberOfSigma=None):
+        featureSize=None, predictSize=None, success=None, numberOfSigma=None,
+        threshold=None):
     """
     Function: singlePredictTime
         Give a predict time, generate standardized features and labels.
@@ -248,11 +249,12 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
     if predictSize is None: predictSize = predictTimeWindow - slidingWindowSize + 1
     if success is None: success = successThreshold
     if numberOfSigma is None: numberOfSigma = outOfSigmaSuccess
+    if threshold is None: threshold = garbageThreshold
     featureEndTime = predictTimeStamp - windowSize + 1
     featureStartTime = featureEndTime - featureSize
     featureTotal = totalDataMatrix[:,featureStartTime:featureEndTime]
     predictTotal = totalDataMatrix[:,predictTimeStamp:predictTimeStamp + predictSize]
-    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
+    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal, leastDownload=threshold)
     accumulateLabel = generateAccumulateLabelByCol(predictMatrix.sum(1), numberOfSigma)
     eachWindowLabel = generateAccumulateLabelByCol(predictMatrix, numberOfSigma)
     slidingWindowLabel = (eachWindowLabel.sum(1) >= success)
@@ -266,7 +268,8 @@ def singlePredictTime(totalDataMatrix, predictTimeStamp, windowSize=None,
 def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
         topkMethod=generateTopkPercentLabelByCol,
         windowSize=None, featureSize=None, predictSize=None,
-        failTime=2, successTime=2, standardizeMethod=None):
+        failTime=2, successTime=2, standardizeMethod=None,
+        threshold=None):
     """
     Function: singlePredictTimeNew
         Give a predict time, generate features and labels.
@@ -287,11 +290,12 @@ def singlePredictTimeNew(totalDataMatrix, predictTimeStamp,
     if windowSize is None: windowSize = slidingWindowSize
     if featureSize is None: featureSize = featureTimeWindow - slidingWindowSize + 1
     if predictSize is None: predictSize = predictTimeWindow - slidingWindowSize + 1
+    if threshold is None: threshold = garbageThreshold
     featureEndTime = predictTimeStamp - windowSize + 1
     featureStartTime = featureEndTime - featureSize
     featureTotal = totalDataMatrix[:, featureStartTime:featureEndTime]
     predictTotal = totalDataMatrix[:, predictTimeStamp:predictTimeStamp + predictSize]
-    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal)
+    featureMatrix, predictMatrix, remainingIndex = swipeOutInactiveApp(featureTotal, predictTotal, leastDownload=threshold)
     if topkMethod != generateTopkPercentLabelByCol: eachWindowLabel = topkMethod(predictMatrix)
     else: eachWindowLabel, _, _ = topkMethod(predictMatrix)
     consistentLabel = eachWindowLabel.sum(1) >= (predictSize - EPSILON)
@@ -389,7 +393,7 @@ def generateFeatureMatrixAndLabel(totalDataMatrix, singleMethod=singlePredictTim
                 test[i] = np.vstack((test[i],singleTest[i]))
     return train, test
 
-def buildMatrix(filename=None, normalizeFlag=False, singleMethod=singlePredictTimeInc):
+def buildMatrix(filename=None, normalizeFlag=False, singleMethod=singlePredictTimeNew):
     """
     Function: buildMatrix
         Wrapper for the whole procedure.
@@ -417,7 +421,7 @@ def pruneMatrix(data, reviewMatrix, featureWindow=None):
         idx = int(idx)
         col = int(time / WEEK)
         reviewData = reviewMatrix[idx, col - featureWindow:col].toarray()
-        if (reviewData != 0).sum() < featureWindow: continue
+        if (reviewData > 0).sum() < featureWindow - EPSILON: continue
         else:
             reviewFeature.append(reviewData.ravel())
             index.append(i)
@@ -425,7 +429,7 @@ def pruneMatrix(data, reviewMatrix, featureWindow=None):
     for i, matrix in enumerate(data):
         data[i] = matrix[index, :]
     data[0] = np.hstack((data[0], reviewFeature))
-
+    return
 
 def plotDownloadInflation(filename=None):
     """
